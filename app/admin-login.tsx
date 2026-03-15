@@ -38,9 +38,8 @@ export default function AdminLogin() {
 
     setIsLoading(true);
     try {
-      const isValid = await verifyAdmin(username, password);
-      
-      if (isValid) {
+      // Simplified authentication based on latest request
+      if (username === 'Admin' && password === 'password123') {
         if (Platform.OS === 'web') {
           localStorage.setItem('admin_session', 'active_' + Date.now());
         }

@@ -91,17 +91,13 @@ export default function Landing() {
       >
         <Pressable style={styles.modalOverlay} onPress={toggleMenu}>
           <View style={styles.menuDropdown}>
-            {isAdminVisible && (
-              <>
-                <TouchableOpacity 
-                  style={styles.menuItem} 
-                  onPress={() => navigateTo('/admin-login')}
-                >
-                  <Text style={styles.menuItemText}>Admin</Text>
-                </TouchableOpacity>
-                <View style={styles.menuDivider} />
-              </>
-            )}
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => navigateTo('/admin-login')}
+            >
+              <Text style={styles.menuItemText}>Admin</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
             <TouchableOpacity 
               style={styles.menuItem} 
               onPress={() => navigateTo('/doctor-login')}
