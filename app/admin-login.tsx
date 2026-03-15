@@ -59,6 +59,8 @@ export default function AdminLogin() {
               onChangeText={setUsername}
               autoCapitalize="none"
               autoComplete="off"
+              importantForAutofill="no"
+              textContentType="none"
               placeholderTextColor="#A0AEC0"
             />
           </View>
@@ -73,6 +75,8 @@ export default function AdminLogin() {
               secureTextEntry
               autoCapitalize="none"
               autoComplete="off"
+              importantForAutofill="no"
+              textContentType="none"
               placeholderTextColor="#A0AEC0"
             />
           </View>
