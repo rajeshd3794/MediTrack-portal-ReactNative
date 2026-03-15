@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform, Modal, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,6 +10,7 @@ export default function PatientRecords() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [patient, setPatient] = useState<any>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -63,6 +64,13 @@ export default function PatientRecords() {
     if (selectedDate) setDate(selectedDate);
   };
 
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  const navigateTo = (path: string) => {
+    setIsMenuOpen(false);
+    router.push(path as any);
+  };
+
   if (!patient) return null;
 
   return (
@@ -74,10 +82,42 @@ export default function PatientRecords() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.patientName}>{patient.name}</Text>
         </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={() => router.replace('/patient-auth')}>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {patient.status === 'Critical' && (
+            <TouchableOpacity 
+              style={styles.hamburgerButton} 
+              onPress={toggleMenu}
+              activeOpacity={0.7}
+            >
+              <View style={styles.hamburgerLine} />
+              <View style={styles.hamburgerLine} />
+              <View style={styles.hamburgerLine} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.logoutButton} onPress={() => router.replace('/patient-auth')}>
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Menu Modal */}
+      <Modal
+        visible={isMenuOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={toggleMenu}
+      >
+        <Pressable style={styles.modalOverlay} onPress={toggleMenu}>
+          <View style={styles.menuDropdown}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => navigateTo('/patient/hub' as any)}
+            >
+              <Text style={styles.menuItemText}>Patient Hub</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
@@ -325,5 +365,52 @@ const styles = StyleSheet.create({
     color: '#2D3748',
     fontSize: 16,
     fontWeight: '600',
-  }
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  hamburgerButton: {
+    padding: 10,
+    backgroundColor: '#EDF2F7',
+    borderRadius: 8,
+    gap: 3,
+  },
+  hamburgerLine: {
+    width: 18,
+    height: 2,
+    backgroundColor: '#1A365D',
+    borderRadius: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+  },
+  menuDropdown: {
+    marginTop: 80,
+    marginRight: 80,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    width: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  menuItem: {
+    padding: 16,
+    width: '100%',
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2D3748',
+  },
 });
