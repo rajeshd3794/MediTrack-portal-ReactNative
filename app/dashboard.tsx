@@ -7,11 +7,11 @@ import { getAllPatients, Patient, getDoctorByUsername } from '../db/db';
 
 // Comprehensive mock data
 const initialPatients = [
-  { id: '1', name: 'John Doe', username: 'john_doe', age: 45, nextAppointment: 'Oct 15, 10:00 AM', status: 'Stable', condition: 'Hypertension' },
-  { id: '2', name: 'Maria Garcia', username: 'maria_garcia', age: 32, nextAppointment: 'Oct 16, 02:30 PM', status: 'Review', condition: 'Type 2 Diabetes' },
-  { id: '3', name: 'Robert Smith', username: 'robert_smith', age: 58, nextAppointment: 'Oct 18, 09:15 AM', status: 'Critical', condition: 'Coronary Artery Disease' },
-  { id: '4', name: 'Sarah Johnson', username: 'sarah_johnson', age: 29, nextAppointment: 'Oct 20, 11:45 AM', status: 'Stable', condition: 'Asthma' },
-  { id: '5', name: 'William Davis', username: 'william_davis', age: 64, nextAppointment: 'Oct 21, 01:00 PM', status: 'Review', condition: 'Osteoarthritis' },
+  { id: '1', name: 'John Doe', age: 45, nextAppointment: 'Oct 15, 10:00 AM', status: 'Stable', condition: 'Hypertension' },
+  { id: '2', name: 'Maria Garcia', age: 32, nextAppointment: 'Oct 16, 02:30 PM', status: 'Review', condition: 'Type 2 Diabetes' },
+  { id: '3', name: 'Robert Smith', age: 58, nextAppointment: 'Oct 18, 09:15 AM', status: 'Critical', condition: 'Coronary Artery Disease' },
+  { id: '4', name: 'Sarah Johnson', age: 29, nextAppointment: 'Oct 20, 11:45 AM', status: 'Stable', condition: 'Asthma' },
+  { id: '5', name: 'William Davis', age: 64, nextAppointment: 'Oct 21, 01:00 PM', status: 'Review', condition: 'Osteoarthritis' },
 ];
 
 export default function Dashboard() {
@@ -63,32 +63,22 @@ export default function Dashboard() {
     }
   };
 
-  const fetchStoredPatients = useCallback(async () => {
-    try {
-      const storedPatients = await getAllPatients();
-      setPatients(prev => {
-        const newArray = [...storedPatients, ...initialPatients];
-        // Filter by username/name to avoid duplicates between initial and stored
-        // Using username as primary key for uniqueness if available
-        const unique = newArray.filter((v, i, a) => 
-          a.findIndex((t: any) => {
-            const vAny = v as any;
-            // Priority: Match by username if both have it
-            if (t.username && vAny.username) return t.username === vAny.username;
-            // Fallback: Match by name
-            return t.name === vAny.name;
-          }) === i
-        );
-        return unique;
-      });
-    } catch(e) {
-      console.error("Failed to load patients from database", e);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       if (loading) return;
+      const fetchStoredPatients = async () => {
+        try {
+          const storedPatients = await getAllPatients();
+          setPatients(prev => {
+            const newArray = [...storedPatients, ...initialPatients];
+            // Filter by name to avoid duplicates between initial and stored
+            const unique = newArray.filter((v, i, a) => a.findIndex(t => (t.name === v.name)) === i);
+            return unique;
+          });
+        } catch(e) {
+          console.error("Failed to load patients from database", e);
+        }
+      };
       fetchStoredPatients();
       
       // Also fetch completed appts on focus
@@ -101,15 +91,8 @@ export default function Dashboard() {
         } catch(e) {}
       };
       fetchCompleted();
-    }, [loading, fetchStoredPatients])
+    }, [loading])
   );
-
-  // Real-time polling to catch updates from Detail page without reload
-  useEffect(() => {
-    if (loading) return;
-    const interval = setInterval(fetchStoredPatients, 10000); // 10s polling
-    return () => clearInterval(interval);
-  }, [loading, fetchStoredPatients]);
 
   // Parse total active appointments
   useEffect(() => {
@@ -310,7 +293,7 @@ export default function Dashboard() {
               key={patient.id || `patient-${idx}`} 
               style={styles.patientCard}
               onPress={() => router.push({
-                pathname: `/patient/${patient.username || patient.name}`,
+                pathname: `/patient/${patient.name}`,
                 params: { status: patient.status }
               } as any)}
             >

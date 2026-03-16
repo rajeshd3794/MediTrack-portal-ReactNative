@@ -19,7 +19,11 @@ export default function PatientProfile() {
       try {
         const found = await getPatientByUsername(id as string);
         if (found) {
-          setPatient(found);
+          if (paramStatus) {
+            setPatient({ ...found, status: paramStatus });
+          } else {
+            setPatient(found);
+          }
           return;
         }
       } catch (e) {
@@ -57,9 +61,6 @@ export default function PatientProfile() {
       await updatePatient(editForm);
       setPatient(editForm);
       setIsEditing(false);
-      if (Platform.OS !== 'web') {
-        alert('Patient records updated successfully!');
-      }
     } catch (e) {
       console.error('Failed to save edits', e);
     }
@@ -113,16 +114,7 @@ export default function PatientProfile() {
               {patient.name.split(' ').map((n: string) => n[0]).join('')}
             </Text>
           </View>
-          {isEditing ? (
-            <TextInput
-              style={[styles.patientName, styles.editInputName]}
-              value={editForm.name || ''}
-              onChangeText={(t) => setEditForm({...editForm, name: t})}
-              placeholder="Full Name"
-            />
-          ) : (
-            <Text style={styles.patientName}>{patient.name}</Text>
-          )}
+          <Text style={styles.patientName}>{patient.name}</Text>
           <Text style={styles.patientCondition}>{patient.condition}</Text>
           
           <View style={styles.tagsContainer}>
@@ -182,11 +174,10 @@ export default function PatientProfile() {
             <Text style={styles.vitalLabel}>Current Status</Text>
             {isEditing ? (
                <TextInput 
-                 style={[styles.editInput, styles.editInputStatus]} 
+                 style={styles.editInput} 
                  value={editForm.status || ''} 
                  onChangeText={(t) => setEditForm({...editForm, status: t})}
-                 placeholder="Stable/Critical"
-                 autoCapitalize="words"
+                 placeholder="Stable/Critical" 
                />
             ) : (
                <Text style={[styles.vitalValue, {color: getStatusColor(patient.status)}]}>{patient.status || 'Stable'}</Text>
@@ -419,19 +410,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     minHeight: 80,
     textAlignVertical: 'top',
-  },
-  editInputName: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#3182CE',
-    minWidth: 200,
-    textAlign: 'center',
-    paddingVertical: 2,
-  },
-  editInputStatus: {
-    borderBottomColor: '#F56565', // Red border for status editing
-    borderBottomWidth: 2,
-    color: '#F56565',
-    fontWeight: '700',
   },
   actionsContainer: {
     gap: 12,

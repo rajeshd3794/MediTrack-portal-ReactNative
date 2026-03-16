@@ -409,38 +409,23 @@ export async function addPatient(patient: Patient) {
 }
 
 export async function getPatientByUsername(username: string): Promise<Patient | null> {
-  // 1. Try Cloud by Username
-  const { data: cloudUser, error: cloudError } = await supabase
+  // 1. Try Cloud
+  const { data, error } = await supabase
     .from('patients')
     .select('*')
     .eq('username', username)
     .single();
   
-  if (!cloudError && cloudUser) return mapCloudToPatient(cloudUser);
+  if (!error && data) return mapCloudToPatient(data);
 
-  // 2. Try Cloud by Name (Fallback for dashboard navigation)
-  const { data: cloudName, error: cloudNameError } = await supabase
-    .from('patients')
-    .select('*')
-    .eq('name', username)
-    .single();
-  
-  if (!cloudNameError && cloudName) return mapCloudToPatient(cloudName);
-
-  // 3. Try Local
+  // 2. Try Local
   try {
     const db = await getDb();
     if (db) {
-      // By Username
-      const localUser = await db.getFirstAsync('SELECT * FROM Patients WHERE username = ?', [username]) as Patient | null;
-      if (localUser) return localUser;
-
-      // By Name
-      const localName = await db.getFirstAsync('SELECT * FROM Patients WHERE name = ?', [username]) as Patient | null;
-      if (localName) return localName;
+      return await db.getFirstAsync('SELECT * FROM Patients WHERE username = ?', [username]) as Patient | null;
     }
   } catch (e) {
-    console.warn('Local patient lookup failed:', e);
+    console.warn('Local getPatientByUsername failed:', e);
   }
   return null;
 }
@@ -514,33 +499,32 @@ export async function getAllPatients(): Promise<Patient[]> {
 }
 
 export async function updatePatient(patient: Patient): Promise<void> {
-  // 1. Sync to Cloud via Upsert (handles both update and insert for persistence)
+  // 1. Sync to Cloud
   const { error } = await supabase
     .from('patients')
-    .upsert(mapPatientToCloud(patient), { onConflict: 'username' });
+    .update(mapPatientToCloud(patient))
+    .eq('username', patient.username);
   
   if (error) {
-    console.error('Supabase upsertPatient failed:', error.message);
-    throw new Error(`Cloud persistence failed: ${error.message}`);
+    console.error('Supabase updatePatient failed:', error.message);
+    throw new Error(`Cloud update failed: ${error.message}`);
   }
 
-  // 2. Local Update (Insert or Replace)
+  // 2. Local Update
   try {
     const db = await getDb();
     if (db) {
       await db.runAsync(
-        'INSERT OR REPLACE INTO Patients (name, username, email, dob, password, nextAppointment, age, condition, status, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'UPDATE Patients SET name = ?, email = ?, dob = ?, nextAppointment = ?, age = ?, condition = ?, status = ? WHERE username = ?',
         [
           patient.name,
-          patient.username,
           patient.email,
           patient.dob,
-          patient.password,
-          patient.nextAppointment ?? 'Pending',
-          patient.age ?? 30,
-          patient.condition ?? 'General Checkup',
-          patient.status ?? 'Stable',
-          patient.timestamp || Date.now()
+          patient.nextAppointment ?? null,
+          patient.age ?? null,
+          patient.condition ?? null,
+          patient.status ?? null,
+          patient.username
         ]
       );
     }
