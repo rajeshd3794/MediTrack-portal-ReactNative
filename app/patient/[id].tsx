@@ -9,8 +9,9 @@ export default function PatientProfile() {
   const router = useRouter();
   const [patient, setPatient] = useState<any>(null);
   
-  // Edit State
+  // Edit & Approval State
   const [isEditing, setIsEditing] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
 
   useEffect(() => {
@@ -66,6 +67,23 @@ export default function PatientProfile() {
     }
   };
 
+  const handleApproval = async (newStatus: 'Accepted' | 'Rejected') => {
+    if (!patient) return;
+    setIsApproving(true);
+    try {
+      const updatedPatient = { ...patient, status: newStatus };
+      await updatePatient(updatedPatient);
+      setPatient(updatedPatient);
+      if (newStatus === 'Rejected') {
+        setTimeout(() => router.back(), 1000);
+      }
+    } catch (e) {
+      console.error('Approval update failed', e);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   if (!patient) return null;
 
   const getStatusColor = (status: string) => {
@@ -74,6 +92,8 @@ export default function PatientProfile() {
       case 'Review': return '#ECC94B';
       case 'Critical': return '#F56565';
       case 'New': return '#3182CE';
+      case 'Accepted': return '#38A169';
+      case 'Rejected': return '#E53E3E';
       default: return '#A0AEC0';
     }
   };
@@ -107,6 +127,35 @@ export default function PatientProfile() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
+        {/* Approval Banner */}
+        {patient.status === 'New' && patient.nextAppointment === 'Pending' && (
+          <View style={styles.approvalBanner}>
+            <View style={styles.approvalIcon}>
+              <Text style={styles.approvalIconText}>🔔</Text>
+            </View>
+            <View style={styles.approvalContent}>
+              <Text style={styles.approvalTitle}>Pending Approval</Text>
+              <Text style={styles.approvalDescription}>This patient is requesting account verification and appointment scheduling.</Text>
+              <View style={styles.approvalActions}>
+                <TouchableOpacity 
+                  style={[styles.approvalBtn, styles.acceptBtn, isApproving && styles.loadingBtn]} 
+                  onPress={() => handleApproval('Accepted')}
+                  disabled={isApproving}
+                >
+                  <Text style={styles.acceptBtnText}>{isApproving ? '...' : 'Accept'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.approvalBtn, styles.rejectBtn, isApproving && styles.loadingBtn]} 
+                  onPress={() => handleApproval('Rejected')}
+                  disabled={isApproving}
+                >
+                  <Text style={styles.rejectBtnText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
@@ -447,5 +496,76 @@ const styles = StyleSheet.create({
     color: '#4A5568',
     fontSize: 16,
     fontWeight: '600',
+  },
+  approvalBanner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#3182CE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  approvalIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EBF8FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  approvalIconText: {
+    fontSize: 20,
+  },
+  approvalContent: {
+    flex: 1,
+  },
+  approvalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2D3748',
+    marginBottom: 4,
+  },
+  approvalDescription: {
+    fontSize: 13,
+    color: '#718096',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  approvalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  approvalBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptBtn: {
+    backgroundColor: '#38A169',
+  },
+  acceptBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rejectBtn: {
+    backgroundColor: '#EDF2F7',
+  },
+  rejectBtnText: {
+    color: '#4A5568',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingBtn: {
+    opacity: 0.7,
   }
 });

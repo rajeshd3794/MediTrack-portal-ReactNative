@@ -55,6 +55,8 @@ export default function Appointments() {
     switch(status) {
       case 'Upcoming': return '#3182CE';
       case 'Completed': return '#48BB78';
+      case 'Accepted': return '#38A169';
+      case 'Rejected': return '#E53E3E';
       case 'Cancelled': return '#E53E3E';
       default: return '#A0AEC0';
     }

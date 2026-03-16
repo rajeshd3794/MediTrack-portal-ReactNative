@@ -178,6 +178,8 @@ export default function Dashboard() {
       case 'Review': return '#ECC94B'; // Yellow
       case 'Critical': return '#F56565'; // Red
       case 'New': return '#3182CE'; // Blue
+      case 'Accepted': return '#38A169'; // Green
+      case 'Rejected': return '#E53E3E'; // Red
       default: return '#A0AEC0'; // Gray
     }
   };
