@@ -182,10 +182,11 @@ export default function PatientProfile() {
             <Text style={styles.vitalLabel}>Current Status</Text>
             {isEditing ? (
                <TextInput 
-                 style={styles.editInput} 
+                 style={[styles.editInput, styles.editInputStatus]} 
                  value={editForm.status || ''} 
                  onChangeText={(t) => setEditForm({...editForm, status: t})}
-                 placeholder="Stable/Critical" 
+                 placeholder="Stable/Critical"
+                 autoCapitalize="words"
                />
             ) : (
                <Text style={[styles.vitalValue, {color: getStatusColor(patient.status)}]}>{patient.status || 'Stable'}</Text>
@@ -425,6 +426,12 @@ const styles = StyleSheet.create({
     minWidth: 200,
     textAlign: 'center',
     paddingVertical: 2,
+  },
+  editInputStatus: {
+    borderBottomColor: '#F56565', // Red border for status editing
+    borderBottomWidth: 2,
+    color: '#F56565',
+    fontWeight: '700',
   },
   actionsContainer: {
     gap: 12,

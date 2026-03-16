@@ -514,32 +514,33 @@ export async function getAllPatients(): Promise<Patient[]> {
 }
 
 export async function updatePatient(patient: Patient): Promise<void> {
-  // 1. Sync to Cloud
+  // 1. Sync to Cloud via Upsert (handles both update and insert for persistence)
   const { error } = await supabase
     .from('patients')
-    .update(mapPatientToCloud(patient))
-    .eq('username', patient.username);
+    .upsert(mapPatientToCloud(patient), { onConflict: 'username' });
   
   if (error) {
-    console.error('Supabase updatePatient failed:', error.message);
-    throw new Error(`Cloud update failed: ${error.message}`);
+    console.error('Supabase upsertPatient failed:', error.message);
+    throw new Error(`Cloud persistence failed: ${error.message}`);
   }
 
-  // 2. Local Update
+  // 2. Local Update (Insert or Replace)
   try {
     const db = await getDb();
     if (db) {
       await db.runAsync(
-        'UPDATE Patients SET name = ?, email = ?, dob = ?, nextAppointment = ?, age = ?, condition = ?, status = ? WHERE username = ?',
+        'INSERT OR REPLACE INTO Patients (name, username, email, dob, password, nextAppointment, age, condition, status, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           patient.name,
+          patient.username,
           patient.email,
           patient.dob,
-          patient.nextAppointment ?? null,
-          patient.age ?? null,
-          patient.condition ?? null,
-          patient.status ?? null,
-          patient.username
+          patient.password,
+          patient.nextAppointment ?? 'Pending',
+          patient.age ?? 30,
+          patient.condition ?? 'General Checkup',
+          patient.status ?? 'Stable',
+          patient.timestamp || Date.now()
         ]
       );
     }
