@@ -5,20 +5,11 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAllPatients, Patient, getDoctorByUsername } from '../db/db';
 
-// Comprehensive mock data
-const initialPatients = [
-  { id: '1', name: 'John Doe', age: 45, nextAppointment: 'Oct 15, 10:00 AM', status: 'Stable', condition: 'Hypertension' },
-  { id: '2', name: 'Maria Garcia', age: 32, nextAppointment: 'Oct 16, 02:30 PM', status: 'Review', condition: 'Type 2 Diabetes' },
-  { id: '3', name: 'Robert Smith', age: 58, nextAppointment: 'Oct 18, 09:15 AM', status: 'Critical', condition: 'Coronary Artery Disease' },
-  { id: '4', name: 'Sarah Johnson', age: 29, nextAppointment: 'Oct 20, 11:45 AM', status: 'Stable', condition: 'Asthma' },
-  { id: '5', name: 'William Davis', age: 64, nextAppointment: 'Oct 21, 01:00 PM', status: 'Review', condition: 'Osteoarthritis' },
-];
-
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const [patients, setPatients] = useState<any[]>(initialPatients);
+  const [patients, setPatients] = useState<any[]>([]);
   const [completedAppts, setCompletedAppts] = useState<any[]>([]);
   const [activeApptsToday, setActiveApptsToday] = useState(0);
   const [nextDayApptsCount, setNextDayApptsCount] = useState(0);
@@ -69,12 +60,7 @@ export default function Dashboard() {
       const fetchStoredPatients = async () => {
         try {
           const storedPatients = await getAllPatients();
-          setPatients(prev => {
-            const newArray = [...storedPatients, ...initialPatients];
-            // Filter by name to avoid duplicates between initial and stored
-            const unique = newArray.filter((v, i, a) => a.findIndex(t => (t.name === v.name)) === i);
-            return unique;
-          });
+          setPatients(storedPatients);
         } catch(e) {
           console.error("Failed to load patients from database", e);
         }
@@ -143,7 +129,7 @@ export default function Dashboard() {
         
         try {
           // Flush to async storage
-          await AsyncStorage.setItem('meditrack_patients', JSON.stringify(updatedPatients.filter(up => !initialPatients.find(ip => ip.id === up.id))));
+          await AsyncStorage.setItem('meditrack_patients', JSON.stringify(updatedPatients));
           
           const storedCompleted = await AsyncStorage.getItem('meditrack_completed_appts');
           const existingCompleted = storedCompleted ? JSON.parse(storedCompleted) : [];
@@ -236,7 +222,7 @@ export default function Dashboard() {
         <View style={{marginBottom: 32}}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
             <TouchableOpacity style={styles.statCard} onPress={() => setActiveView('recent')}>
-              <Text style={styles.statNumber}>{patients.length > initialPatients.length ? 19 + patients.length : 24}</Text>
+              <Text style={styles.statNumber}>{patients.length}</Text>
               <Text style={styles.statLabel}>Total Patients</Text>
             </TouchableOpacity>
 
