@@ -15,6 +15,8 @@ export default function Dashboard() {
   const [completedCount, setCompletedCount] = useState(0);
   const [criticalCount, setCriticalCount] = useState(0);
   const [activeView, setActiveView] = useState<'recent' | 'completed' | 'nextDay'>('recent');
+  const [selectedDate, setSelectedDate] = useState(new Date().getDate());
+  const [currentWeek, setCurrentWeek] = useState<any[]>([]);
   
   const [doctorDisplay, setDoctorDisplay] = useState(params.doctorName as string || 'Doctor');
   const [loading, setLoading] = useState(true);
@@ -169,6 +171,28 @@ export default function Dashboard() {
     }
   }, [params.newPatientName]);
 
+  useEffect(() => {
+    const generateWeek = () => {
+      const days = [];
+      const today = new Date();
+      for (let i = -2; i <= 4; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() + i);
+        days.push({
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: d.getDate(),
+          fullDate: d.toDateString()
+        });
+      }
+      setCurrentWeek(days);
+    };
+    generateWeek();
+  }, []);
+
+  const getCurrentMonthYear = () => {
+    return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'Stable': return '#48BB78'; // Green
@@ -190,8 +214,15 @@ export default function Dashboard() {
         return !isNaN(apptTime) && apptTime > Date.now() + 86400000;
       });
     } else {
-      // Recent View shows active patients only
+      // Recent View shows active patients only, filtered by selected date if applicable
       list = patients.filter(p => p.nextAppointment !== 'Completed');
+      
+      // Filter by selected date (either registration day or appointment day)
+      list = list.filter(p => {
+        const pDate = p.timestamp ? new Date(p.timestamp).getDate() : null;
+        const apptDate = p.nextAppointment && p.nextAppointment.includes('/') ? new Date(p.nextAppointment).getDate() : null;
+        return pDate === selectedDate || apptDate === selectedDate;
+      });
     }
 
     // Sort priority: Review (1) > Critical (2) > Stable (3) > Others (4)
@@ -262,15 +293,42 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {activeView === 'recent' ? 'Recent Patients' : 
-             activeView === 'completed' ? 'Completed Appointments' : 
-             'Next Day Appointments'}
-          </Text>
-          <TouchableOpacity onPress={() => setActiveView('recent')}>
+          <View>
+            <Text style={styles.sectionTitle}>
+              {activeView === 'recent' ? 'Recent Patients' : 
+               activeView === 'completed' ? 'Completed Appointments' : 
+               'Next Day Appointments'}
+            </Text>
+            <Text style={styles.dateSubtext}>{getCurrentMonthYear()}</Text>
+          </View>
+          <TouchableOpacity onPress={() => {
+            setActiveView('recent');
+            setSelectedDate(new Date().getDate());
+          }}>
             <Text style={styles.seeAllText}>Reset View</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Dynamic Calendar Strip */}
+        {activeView === 'recent' && (
+          <View style={styles.calendarStrip}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {currentWeek.map((day, idx) => (
+                <TouchableOpacity 
+                  key={idx} 
+                  style={[
+                    styles.calendarDay, 
+                    selectedDate === day.date && styles.calendarDayActive
+                  ]}
+                  onPress={() => setSelectedDate(day.date)}
+                >
+                  <Text style={[styles.dayName, selectedDate === day.date && styles.dayNameActive]}>{day.day}</Text>
+                  <Text style={[styles.dayNumber, selectedDate === day.date && styles.dayNumberActive]}>{day.date}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Patient List View (Dynamically switches based on Stat Card clicks) */}
         <View style={styles.patientList}>
@@ -397,6 +455,50 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#2D3748',
+  },
+  dateSubtext: {
+    fontSize: 12,
+    color: '#718096',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  calendarStrip: {
+    marginBottom: 20,
+    paddingVertical: 4,
+  },
+  calendarDay: {
+    width: 50,
+    height: 65,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calendarDayActive: {
+    backgroundColor: '#3182CE',
+    borderColor: '#3182CE',
+  },
+  dayName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#718096',
+    textTransform: 'uppercase',
+  },
+  dayNameActive: {
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+  dayNumber: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#2D3748',
+    marginTop: 2,
+  },
+  dayNumberActive: {
+    color: '#FFFFFF',
   },
   seeAllText: {
     color: '#3182CE',

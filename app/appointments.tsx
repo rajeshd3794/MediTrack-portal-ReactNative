@@ -6,8 +6,9 @@ import { getAllPatients, Patient } from '../db/db';
 
 export default function Appointments() {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState(15);
+  const [selectedDate, setSelectedDate] = useState(new Date().getDate());
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [weekDays, setWeekDays] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -25,17 +26,29 @@ export default function Appointments() {
         console.error("Failed to fetch appointments", e);
       }
     };
+    
+    const generateWeek = () => {
+      const days = [];
+      const today = new Date();
+      for (let i = -2; i <= 4; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() + i);
+        days.push({
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: d.getDate()
+        });
+      }
+      setWeekDays(days);
+    };
+
     fetchAppointments();
+    generateWeek();
   }, []);
 
-  // Generate a mock calendar week
-  const weekDays = [
-    { day: 'Mon', date: 14 },
-    { day: 'Tue', date: 15 },
-    { day: 'Wed', date: 16 },
-    { day: 'Thu', date: 17 },
-    { day: 'Fri', date: 18 },
-  ];
+  const getCurrentMonthYear = () => {
+    return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -63,7 +76,7 @@ export default function Appointments() {
         
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Schedule</Text>
-          <Text style={styles.subtitle}>October 2026</Text>
+          <Text style={styles.subtitle}>{getCurrentMonthYear()}</Text>
         </View>
 
         {/* Horizontal Calendar */}
@@ -85,7 +98,7 @@ export default function Appointments() {
                 styles.dateText, 
                 selectedDate === item.date && styles.selectedText
               ]}>{item.date}</Text>
-              {item.date === 15 && <View style={styles.hasEventDot} />}
+              {item.date === new Date().getDate() && <View style={styles.hasEventDot} />}
             </TouchableOpacity>
           ))}
         </View>
