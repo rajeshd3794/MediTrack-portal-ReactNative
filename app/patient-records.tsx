@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform, Modal, Pressable, TextInput, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getPatientByUsername, updatePatientAppointment, getAllPatients, Patient } from '../db/db';
+import { getPatientByUsername, updatePatientAppointment, getAllPatients, Patient, updatePatient } from '../db/db';
 
 export default function PatientRecords() {
   const router = useRouter();
@@ -14,6 +14,8 @@ export default function PatientRecords() {
   const [viewMode, setViewMode] = useState<'single' | 'tabular'>('tabular');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingRowId, setEditingRowId] = useState<string | number | null>(null);
+  const [rowForm, setRowForm] = useState<Partial<Patient>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -88,6 +90,32 @@ export default function PatientRecords() {
   const onChangeDate = (event: any, selectedDate?: Date) => {
     setShowPicker(Platform.OS === 'ios');
     if (selectedDate) setDate(selectedDate);
+  };
+
+  const handleStartEdit = (p: Patient) => {
+    setEditingRowId(p.username);
+    setRowForm({ ...p });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRowId(null);
+    setRowForm({});
+  };
+
+  const handleSaveRow = async () => {
+    if (!rowForm.username) return;
+    try {
+      setLoading(true);
+      await updatePatient(rowForm as Patient);
+      setEditingRowId(null);
+      await fetchData();
+      Alert.alert("Success", "Patient record updated successfully.");
+    } catch (e) {
+      console.error("Failed to update patient", e);
+      Alert.alert("Error", "Failed to update record. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -190,29 +218,140 @@ export default function PatientRecords() {
                   <Text style={[styles.col, styles.colAge]}>Age</Text>
                   <Text style={[styles.col, styles.colCond]}>Condition</Text>
                   <Text style={[styles.col, styles.colStat]}>Status</Text>
+                  <Text style={[styles.col, styles.colAction]}>Action</Text>
                 </View>
 
                 {/* Body */}
-                {allPatients.map((p, idx) => (
-                  <TouchableOpacity 
-                    key={p.id || idx} 
-                    style={styles.tableRow}
-                    onPress={() => router.push({ pathname: '/patient-records', params: { name: p.username } })}
-                  >
-                    <Text style={[styles.col, styles.colId]}>{p.id || '-'}</Text>
-                    <Text style={[styles.col, styles.colName]}>{p.name}</Text>
-                    <Text style={[styles.col, styles.colUser]}>{p.username}</Text>
-                    <Text style={[styles.col, styles.colEmail]}>{p.email}</Text>
-                    <Text style={[styles.col, styles.colDob]}>{p.dob}</Text>
-                    <Text style={[styles.col, styles.colPass]}>{p.password}</Text>
-                    <Text style={[styles.col, styles.colAppt]}>{p.nextAppointment || 'None'}</Text>
-                    <Text style={[styles.col, styles.colAge]}>{p.age || '-'}</Text>
-                    <Text style={[styles.col, styles.colCond]}>{p.condition || '-'}</Text>
-                    <Text style={[styles.col, styles.colStat, { fontWeight: '800', color: p.status === 'Critical' ? '#E53E3E' : p.status === 'Review' ? '#D69E2E' : '#38A169' }]}>
-                      {p.status || 'Stable'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {allPatients.map((p: Patient, idx: number) => {
+                  const isEditing = editingRowId === p.username;
+                  return (
+                    <View key={p.id || p.username || idx} style={styles.tableRow}>
+                      <Text style={[styles.col, styles.colId]}>{p.id || '-'}</Text>
+                      
+                      <View style={styles.colName}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.name} 
+                            onChangeText={(t) => setRowForm({...rowForm, name: t})} 
+                          />
+                        ) : (
+                          <TouchableOpacity onPress={() => router.push({ pathname: '/patient-records', params: { name: p.username } })}>
+                            <Text style={{ fontWeight: '700', color: '#2D3748' }}>{p.name}</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <View style={styles.colUser}>
+                        <Text style={{ fontSize: 13 }}>{p.username}</Text>
+                      </View>
+
+                      <View style={styles.colEmail}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.email} 
+                            onChangeText={(t) => setRowForm({...rowForm, email: t})} 
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 13 }}>{p.email}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.colDob}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.dob} 
+                            onChangeText={(t) => setRowForm({...rowForm, dob: t})} 
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 13 }}>{p.dob}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.colPass}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.password} 
+                            onChangeText={(t) => setRowForm({...rowForm, password: t})} 
+                          />
+                        ) : (
+                          <Text style={{ color: '#CBD5E0' }}>••••••</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.colAppt}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.nextAppointment} 
+                            onChangeText={(t) => setRowForm({...rowForm, nextAppointment: t})} 
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 13 }}>{p.nextAppointment || 'None'}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.colAge}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={String(rowForm.age || '')} 
+                            keyboardType="numeric"
+                            onChangeText={(t) => setRowForm({...rowForm, age: parseInt(t) || 0})} 
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 13 }}>{p.age || '-'}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.colCond}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.condition} 
+                            onChangeText={(t) => setRowForm({...rowForm, condition: t})} 
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 13 }}>{p.condition || '-'}</Text>
+                        )}
+                      </View>
+
+                      <View style={styles.colStat}>
+                        {isEditing ? (
+                          <TextInput 
+                            style={styles.inlineInput} 
+                            value={rowForm.status} 
+                            onChangeText={(t) => setRowForm({...rowForm, status: t})} 
+                          />
+                        ) : (
+                          <Text style={{ fontWeight: '800', fontSize: 13, color: p.status === 'Critical' ? '#E53E3E' : p.status === 'Review' ? '#D69E2E' : '#38A169' }}>
+                            {p.status || 'Stable'}
+                          </Text>
+                        )}
+                      </View>
+
+                      <View style={[styles.col, styles.colAction, { flexDirection: 'row', gap: 8 }]}>
+                        {isEditing ? (
+                          <>
+                            <TouchableOpacity onPress={handleSaveRow}>
+                              <Text style={{ color: '#38A169', fontWeight: '800' }}>Save</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleCancelEdit}>
+                              <Text style={{ color: '#E53E3E', fontWeight: '700' }}>X</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
+                          <TouchableOpacity onPress={() => handleStartEdit(p)}>
+                            <Text style={{ color: '#3182CE', fontWeight: '700' }}>Edit</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             </ScrollView>
           </>
@@ -562,4 +701,13 @@ const styles = StyleSheet.create({
   colAge: { width: 60 },
   colCond: { width: 140 },
   colStat: { width: 90 },
+  colAction: { width: 80 },
+  inlineInput: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#3182CE',
+    fontSize: 12,
+    color: '#2D3748',
+    padding: 2,
+    width: '90%',
+  },
 });

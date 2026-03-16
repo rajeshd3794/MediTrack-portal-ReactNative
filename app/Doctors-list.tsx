@@ -77,20 +77,26 @@ export default function DoctorsList() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Doctors Records</Text>
           {lastUpdated ? <Text style={styles.lastUpdatedText}>Last Sync: {lastUpdated}</Text> : null}
         </View>
-        <TouchableOpacity 
-          style={[styles.refreshButton, refreshing && styles.refreshingButton]} 
-          onPress={() => fetchDoctors(true)}
-          disabled={refreshing}
-        >
-          <Text style={styles.refreshButtonText}>{refreshing ? 'Syncing...' : 'Refresh'}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={[styles.refreshButton, refreshing && styles.refreshingButton]} 
+            onPress={() => fetchDoctors(true)}
+            disabled={refreshing}
+          >
+            <Text style={styles.refreshButtonText}>{refreshing ? 'Syncing...' : 'Refresh'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.exitButton} 
+            onPress={() => router.replace('/admin')}
+          >
+            <Text style={styles.exitButtonText}>Exit</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} horizontal={false}>
@@ -200,6 +206,24 @@ const styles = StyleSheet.create({
     color: '#3182CE',
     fontSize: 12,
     fontWeight: '700',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  exitButton: {
+    backgroundColor: '#FED7D7',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FEB2B2',
+  },
+  exitButtonText: {
+    color: '#E53E3E',
+    fontSize: 12,
+    fontWeight: '800',
   },
   content: {
     flex: 1,
