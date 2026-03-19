@@ -678,7 +678,6 @@ export async function checkAndAutoUpdateAppointments(): Promise<void> {
           console.log(`Auto-completing appointment for ${p.username}`);
           await updatePatient({
             ...p,
-            status: 'Completed',
             nextAppointment: 'Completed'
           });
           updatesCount++;

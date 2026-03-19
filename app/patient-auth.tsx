@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPatientByUsername } from '../db/db';
 
 export default function PatientAuth() {
@@ -24,7 +25,8 @@ export default function PatientAuth() {
         // Check password
         if (patient.password === password) {
           setError('');
-          router.replace(`/patient-records/${patient.name}`);
+          await AsyncStorage.setItem('logged_in_patient', patient.username);
+          router.replace(`/patient-records/${patient.username}`);
           return;
         } else {
           setError('Incorrect password.');
@@ -40,6 +42,7 @@ export default function PatientAuth() {
     // Mock Authentication Logic fallback (matching seeded data)
     if (username === 'patient' && password === 'password123') {
       setError('');
+      await AsyncStorage.setItem('logged_in_patient', 'patient');
       router.replace(`/patient-records/John Doe`);
       return;
     }

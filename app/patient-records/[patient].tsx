@@ -8,17 +8,17 @@ import { getPatientByUsername, updatePatientAppointment, Patient, updatePatient 
 
 export default function PatientSingleRecord() {
   const router = useRouter();
-  const { name } = useLocalSearchParams();
+  const { patient: patientParam } = useLocalSearchParams();
   const [patient, setPatient] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!name) return;
+    if (!patientParam) return;
     setLoading(true);
     try {
-      const found = await getPatientByUsername(name as string);
-      if (found) {
+      const found = await getPatientByUsername(patientParam as string);
+      if (found && typeof found === 'object') {
         setPatient(found);
       } else {
         // Fallback for demo/test purposes

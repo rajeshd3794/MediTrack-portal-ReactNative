@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Platform, Modal, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPatientByUsername, Patient } from '../../db/db';
 
 export default function PatientHub() {
@@ -14,9 +15,10 @@ export default function PatientHub() {
   useEffect(() => {
     const fetchPatientData = async () => {
       try {
-        // In a real app, we'd get this from a session/auth context
-        // For now, we'll try to get it from the 'name' or 'username' param or fallback to 'patient'
-        const username = (params.username as string) || (params.name as string) || 'patient';
+        // Read from AsyncStorage for the session first
+        const storedUsername = await AsyncStorage.getItem('logged_in_patient');
+        const username = storedUsername || (params.patient as string) || (params.name as string) || 'patient';
+        
         const data = await getPatientByUsername(username);
         if (data) {
           setPatient(data);
@@ -28,7 +30,7 @@ export default function PatientHub() {
       }
     };
     fetchPatientData();
-  }, [params.username, params.name]);
+  }, [params.patient, params.name]);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -46,7 +48,10 @@ export default function PatientHub() {
       
       {/* Header */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: 16 }}>
           <Text style={styles.welcomeText}>Patient Portal</Text>
           <Text style={styles.patientName}>{patient?.name || 'User'}'s Hub</Text>
         </View>
@@ -78,10 +83,6 @@ export default function PatientHub() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); }}>
               <Text style={styles.menuItemText}>🏃 Patient fitness track</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.back()}>
-              <Text style={[styles.menuItemText, { color: '#E53E3E' }]}>Go Back</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -168,6 +169,19 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: '#1A365D',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EDF2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#1A365D',
+    fontWeight: '700',
   },
   hamburgerButton: {
     padding: 10,

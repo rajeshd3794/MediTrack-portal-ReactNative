@@ -98,13 +98,14 @@ export default function Dashboard() {
     let critical = 0;
     
     patients.forEach(p => {
-      // 1. Count by status/type
+      // 1. Count by health status (independent of appointment)
+      if (p.status === 'Critical') critical++;
+      
+      // 2. Count by appointment status/type
       if (p.nextAppointment === 'Completed') {
         completed++;
       } else {
-        if (p.status === 'Critical') critical++;
-        
-        // 2. Count active appointments by date
+        // 3. Count active appointments by date
         if (p.nextAppointment && p.nextAppointment !== 'Pending' && p.nextAppointment !== 'None') {
           const apptTime = new Date(p.nextAppointment).getTime();
           if (!isNaN(apptTime)) {
@@ -195,8 +196,8 @@ export default function Dashboard() {
         return !isNaN(apptTime) && apptTime > Date.now() + 86400000;
       });
     } else if (activeView === 'critical') {
-      // Critical View shows all patients with Critical status (not completed)
-      list = patients.filter(p => p.status === 'Critical' && p.nextAppointment !== 'Completed');
+      // Critical View shows all patients with Critical status (including completed if any)
+      list = patients.filter(p => p.status === 'Critical');
     } else {
       // Recent View shows active patients only, filtered by selected date if applicable
       list = patients.filter(p => p.nextAppointment !== 'Completed');
@@ -240,7 +241,9 @@ export default function Dashboard() {
         <View style={{marginBottom: 32}}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
             <TouchableOpacity style={styles.statCard} onPress={() => setActiveView('recent')}>
-              <Text style={styles.statNumber}>{patients.length}</Text>
+              <Text style={styles.statNumber}>
+                {activeApptsToday + nextDayApptsCount + completedCount + criticalCount}
+              </Text>
               <Text style={styles.statLabel}>Total Patients</Text>
             </TouchableOpacity>
 
