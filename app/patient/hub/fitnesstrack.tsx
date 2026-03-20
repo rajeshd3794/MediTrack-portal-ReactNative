@@ -10,7 +10,7 @@ const { width } = Dimensions.get('window');
 export default function PatientFitnessTrack() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const { steps, calories, duration, isWalking, resetActivity, simulateWalk } = useActivityTracker();
+  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity } = useActivityTracker();
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -204,9 +204,17 @@ export default function PatientFitnessTrack() {
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Fitness Track</Text>
-        <TouchableOpacity onPress={resetActivity}>
-          <Text style={{color: '#F56565', fontWeight: '700'}}>Reset</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity 
+            style={[styles.startHeaderButton, isTracking && styles.stopHeaderButton]} 
+            onPress={toggleTracking}
+          >
+            <Text style={styles.startHeaderText}>{isTracking ? 'Stop' : 'Start'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={resetActivity}>
+            <Text style={{color: '#F56565', fontWeight: '700'}}>Reset</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -214,7 +222,14 @@ export default function PatientFitnessTrack() {
         <View style={styles.summaryCard}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
             <Text style={styles.cardTitle}>Activity Summary</Text>
-            {isWalking && <Text style={{fontSize: 12, color: '#48BB78', fontWeight: '800'}}>🏃 WALKING...</Text>}
+            {isTracking ? (
+              <View style={styles.trackingActiveIndicator}>
+                <View style={styles.activeDot} />
+                <Text style={styles.activeText}>{isWalking ? 'WALKING...' : 'ACTIVE'}</Text>
+              </View>
+            ) : (
+              <Text style={{fontSize: 12, color: '#A0AEC0', fontWeight: '700'}}>PAUSED</Text>
+            )}
           </View>
           <View style={styles.summaryGrid}>
             <View style={styles.summaryItem}>
@@ -230,13 +245,6 @@ export default function PatientFitnessTrack() {
               <Text style={styles.summaryLabel}>Duration</Text>
             </View>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.testStepButton} 
-            onPress={() => simulateWalk(50)}
-          >
-            <Text style={styles.testStepText}>🏃 Simulate Walking (+50 steps)</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Real-time Metrics (Graph) */}
@@ -418,6 +426,36 @@ const styles = StyleSheet.create({
     color: '#1A365D',
     fontWeight: '700',
   },
+  startHeaderButton: {
+    backgroundColor: '#48BB78',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  stopHeaderButton: {
+    backgroundColor: '#F6E05E',
+  },
+  startHeaderText: {
+    color: '#1A365D',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  trackingActiveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#48BB78',
+  },
+  activeText: {
+    fontSize: 12,
+    color: '#48BB78',
+    fontWeight: '800',
+  },
   content: {
     flex: 1,
     padding: 24,
@@ -452,18 +490,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
     marginTop: 4,
-  },
-  testStepButton: {
-    marginTop: 16,
-    backgroundColor: '#EDF2F7',
-    padding: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  testStepText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#3182CE',
   },
   sectionTitle: {
     fontSize: 18,

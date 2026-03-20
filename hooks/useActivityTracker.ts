@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_STEPS = 'activity_steps';
 const STORAGE_CALORIES = 'activity_calories';
 const STORAGE_DURATION = 'activity_duration';
+const STORAGE_IS_TRACKING = 'activity_is_tracking';
 
 export const useActivityTracker = () => {
   const [steps, setSteps] = useState(0);
@@ -13,6 +14,7 @@ export const useActivityTracker = () => {
   const [duration, setDuration] = useState(0); // in seconds
   const [isPedometerAvailable, setIsPedometerAvailable] = useState('checking');
   const [isWalking, setIsWalking] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -20,6 +22,7 @@ export const useActivityTracker = () => {
       try {
         const savedSteps = await AsyncStorage.getItem(STORAGE_STEPS);
         const savedDuration = await AsyncStorage.getItem(STORAGE_DURATION);
+        const savedTracking = await AsyncStorage.getItem(STORAGE_IS_TRACKING);
         
         if (savedSteps) {
           const s = parseInt(savedSteps, 10);
@@ -28,6 +31,9 @@ export const useActivityTracker = () => {
         }
         if (savedDuration) {
           setDuration(parseInt(savedDuration, 10));
+        }
+        if (savedTracking === 'true') {
+          setIsTracking(true);
         }
       } catch (e) {
         console.error("Failed to load activity stats", e);
@@ -39,6 +45,8 @@ export const useActivityTracker = () => {
   // Set up Pedometer
   useEffect(() => {
     let subscription: any;
+
+    if (!isTracking) return;
 
     const subscribe = async () => {
       const isAvailable = await Pedometer.isAvailableAsync();
@@ -64,13 +72,14 @@ export const useActivityTracker = () => {
 
     subscribe();
     return () => subscription && subscription.remove();
-  }, []);
+  }, [isTracking]);
 
-  // Duration Timer logic (only if walking)
+  // Duration Timer logic (only if tracking)
   useEffect(() => {
     let interval: any;
-    if (isWalking) {
+    if (isTracking) {
       interval = setInterval(() => {
+        // Only increment duration if we are actually tracking
         setDuration(prev => {
           const next = prev + 1;
           AsyncStorage.setItem(STORAGE_DURATION, next.toString());
@@ -78,7 +87,8 @@ export const useActivityTracker = () => {
         });
       }, 1000);
 
-      // Reset isWalking after 3 seconds of no step updates
+      // Web Simulation / Pedometer Fallback: If no real sensor, we can't detect walking easily
+      // So we just maintain the isWalking state if steps changed recently
       const timeout = setTimeout(() => {
         setIsWalking(false);
       }, 3000);
@@ -88,26 +98,22 @@ export const useActivityTracker = () => {
         clearTimeout(timeout);
       };
     }
-  }, [isWalking]);
+  }, [isTracking, isWalking]);
+
+  const toggleTracking = useCallback(async () => {
+    const nextState = !isTracking;
+    setIsTracking(nextState);
+    await AsyncStorage.setItem(STORAGE_IS_TRACKING, nextState.toString());
+  }, [isTracking]);
 
   const resetActivity = useCallback(async () => {
     setSteps(0);
     setCalories(0);
     setDuration(0);
     setIsWalking(false);
-    await AsyncStorage.multiRemove([STORAGE_STEPS, STORAGE_CALORIES, STORAGE_DURATION]);
+    setIsTracking(false);
+    await AsyncStorage.multiRemove([STORAGE_STEPS, STORAGE_CALORIES, STORAGE_DURATION, STORAGE_IS_TRACKING]);
   }, []);
 
-  // FOR WEB/SIMULATION: Manually trigger a "Walk" for testing
-  const simulateWalk = useCallback((count = 10) => {
-    setSteps(prev => {
-      const next = prev + count;
-      setCalories(Math.round(next * 0.04));
-      setIsWalking(true);
-      AsyncStorage.setItem(STORAGE_STEPS, next.toString());
-      return next;
-    });
-  }, []);
-
-  return { steps, calories, duration, isWalking, resetActivity, simulateWalk, isPedometerAvailable };
+  return { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, isPedometerAvailable };
 };
