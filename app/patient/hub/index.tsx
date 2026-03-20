@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Pla
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getPatientByUsername, Patient } from '../../db/db';
+import { getPatientByUsername, Patient } from '../../../db/db';
 
 export default function PatientHub() {
   const router = useRouter();
@@ -11,6 +11,8 @@ export default function PatientHub() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isNutritionExpanded, setIsNutritionExpanded] = useState(false);
+  const [isWorkoutExpanded, setIsWorkoutExpanded] = useState(false);
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -75,13 +77,13 @@ export default function PatientHub() {
       >
         <Pressable style={styles.modalOverlay} onPress={toggleMenu}>
           <View style={styles.menuDropdown}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); }}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/patient/hub/pchs'); }}>
               <Text style={styles.menuItemText}>🩺 Patient Current health status</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); }}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/patient/hub/fitnessplan'); }}>
               <Text style={styles.menuItemText}>📋 Patient fitness plan</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); }}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); router.push('/patient/hub/fitnesstrack'); }}>
               <Text style={styles.menuItemText}>🏃 Patient fitness track</Text>
             </TouchableOpacity>
           </View>
@@ -113,29 +115,101 @@ export default function PatientHub() {
           </View>
         </View>
 
-        {/* Quick Links */}
-        <Text style={styles.sectionTitle}>My Wellness</Text>
-        <TouchableOpacity style={styles.actionCard}>
-          <View style={styles.actionIconContainer}>
-            <Text style={styles.actionEmoji}>🍎</Text>
-          </View>
-          <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitle}>Nutrition Plan</Text>
-            <Text style={styles.actionDesc}>View your personalized diet chart</Text>
-          </View>
-          <Text style={styles.actionArrow}>→</Text>
-        </TouchableOpacity>
+        {/* Conditional Wellness Section for Critical Patients */}
+        {patient?.status === 'Critical' && (
+          <>
+            <Text style={styles.sectionTitle}>Critical Care Wellness</Text>
+            
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              onPress={() => setIsNutritionExpanded(!isNutritionExpanded)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.actionIconContainer}>
+                <Text style={styles.actionEmoji}>🍎</Text>
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Nutrition Plan</Text>
+                <Text style={styles.actionDesc}>{isNutritionExpanded ? 'Hide details' : 'View your personalized diet chart'}</Text>
+              </View>
+              <Text style={[styles.actionArrow, { transform: [{ rotate: isNutritionExpanded ? '90deg' : '0deg' }] }]}>→</Text>
+            </TouchableOpacity>
+            
+            {isNutritionExpanded && (
+              <View style={styles.expandedContent}>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>High-protein, low-sodium breakfast (Oatmeal with berries)</Text>
+                </View>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>Leafy green salad with grilled chicken and olive oil</Text>
+                </View>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>Evening snack: Handful of walnuts and 1 apple</Text>
+                </View>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>Hydration: Minimum 2.5 liters of water daily</Text>
+                </View>
+              </View>
+            )}
 
-        <TouchableOpacity style={styles.actionCard}>
-          <View style={styles.actionIconContainer}>
-            <Text style={styles.actionEmoji}>🧘</Text>
-          </View>
-          <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitle}>Workout Routine</Text>
-            <Text style={styles.actionDesc}>Strength training and cardio</Text>
-          </View>
-          <Text style={styles.actionArrow}>→</Text>
-        </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => setIsWorkoutExpanded(!isWorkoutExpanded)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.actionIconContainer}>
+                <Text style={styles.actionEmoji}>🧘</Text>
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Workout Routine</Text>
+                <Text style={styles.actionDesc}>{isWorkoutExpanded ? 'Hide details' : 'Strength training and cardio'}</Text>
+              </View>
+              <Text style={[styles.actionArrow, { transform: [{ rotate: isWorkoutExpanded ? '90deg' : '0deg' }] }]}>→</Text>
+            </TouchableOpacity>
+
+            {isWorkoutExpanded && (
+              <View style={styles.expandedContent}>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>15 mins low-impact morning stretches</Text>
+                </View>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>20 mins light aerobic walk (maintain {'<'} 100 BPM)</Text>
+                </View>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>Breathing exercises (3 sets of 5 mins each)</Text>
+                </View>
+                <View style={styles.planItem}>
+                  <Text style={styles.planDot}>•</Text>
+                  <Text style={styles.planText}>Avoid heavy lifting until next review</Text>
+                </View>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Global Wellness (Optional or always visible) */}
+        {patient?.status !== 'Critical' && (
+          <>
+            <Text style={styles.sectionTitle}>My Wellness</Text>
+            <TouchableOpacity style={styles.actionCard}>
+              <View style={styles.actionIconContainer}>
+                <Text style={styles.actionEmoji}>🏥</Text>
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Standard Health Tips</Text>
+                <Text style={styles.actionDesc}>General wellness guidelines</Text>
+              </View>
+              <Text style={styles.actionArrow}>→</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -333,5 +407,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#CBD5E0',
     fontWeight: '700',
+  },
+  expandedContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: -8,
+    marginBottom: 16,
+    marginLeft: 32,
+    borderLeftWidth: 2,
+    borderLeftColor: '#3182CE',
+  },
+  planItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  planDot: {
+    fontSize: 18,
+    color: '#3182CE',
+    marginRight: 8,
+    lineHeight: 20,
+  },
+  planText: {
+    fontSize: 14,
+    color: '#4A5568',
+    flex: 1,
+    lineHeight: 20,
   },
 });
