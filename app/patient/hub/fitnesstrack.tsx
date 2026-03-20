@@ -28,10 +28,24 @@ export default function PatientFitnessTrack() {
     if (Platform.OS === 'web' && isMeasuring) {
       const startWebPPG = async () => {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+          // Use environment (back) camera for PPG as it has the flash
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+          });
+          
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             videoRef.current.play();
+            
+            // Attempt to turn on Flash (Torch) on supported browsers (Chrome/Android)
+            const track = stream.getVideoTracks()[0];
+            const capabilities = (track as any).getCapabilities?.() || {};
+            if (capabilities.torch) {
+              await track.applyConstraints({
+                advanced: [{ torch: true }]
+              } as any);
+            }
+            
             processFrames();
           }
         } catch (err) {
@@ -113,7 +127,14 @@ export default function PatientFitnessTrack() {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach((t: any) => t.stop());
+        tracks.forEach((t: any) => {
+          // Turn off torch if supported before stopping
+          if (t.applyConstraints) {
+            t.applyConstraints({ advanced: [{ torch: false }] } as any).finally(() => t.stop());
+          } else {
+            t.stop();
+          }
+        });
       }
     };
   }, [isMeasuring]);
