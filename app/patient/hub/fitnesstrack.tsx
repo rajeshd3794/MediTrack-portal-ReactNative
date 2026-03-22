@@ -14,6 +14,7 @@ export default function PatientFitnessTrack() {
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
+  const [isFingerPlaced, setIsFingerPlaced] = useState(false);
   const [bpm, setBpm] = useState(75);
   const [heartRateHistory, setHeartRateHistory] = useState([65, 72, 68, 85, 92, 78, 70, 68, 75, 82]);
   const [measurementProgress, setMeasurementProgress] = useState(0);
@@ -36,6 +37,9 @@ export default function PatientFitnessTrack() {
       return () => clearTimeout(timer);
     }
   }, [steps]);
+
+  // Session Cleanup: None (New requirement: Persist on Stop, only reset on Reset button)
+  // Removed automatic resetActivity call on unmount to enable session recovery.
 
   // Handle permission denials
   useEffect(() => {
@@ -101,6 +105,7 @@ export default function PatientFitnessTrack() {
         let lastBpmUpdate = Date.now();
         let samples: number[] = [];
         let peaks: number[] = [];
+        let lastFingerState = false;
 
         const loop = () => {
           if (!isMeasuring) return;
@@ -111,47 +116,67 @@ export default function PatientFitnessTrack() {
           
           let totalRed = 0;
           for (let i = 0; i < data.length; i += 4) {
-            totalRed += data[i]; // Sample Red channel
+            totalRed += data[i]; 
           }
           const avgRed = totalRed / (data.length / 4);
-          samples.push(avgRed);
-          if (samples.length > 100) samples.shift();
-
-          // Simple Peak Detection
-          if (samples.length > 10) {
-            const current = samples[samples.length - 1];
-            const prev = samples[samples.length - 2];
-            const prevPrev = samples[samples.length - 3];
+          
+          // Smart Finger Detection: Saturation >= 180 means finger is firmly on flash/lens
+          const detected = avgRed > 180;
+          if (detected !== lastFingerState) {
+            setIsFingerPlaced(detected);
+            lastFingerState = detected;
             
-            // Detect local maxima above moving average
-            const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
-            if (prev > avg && prev > current && prev > prevPrev) {
-              const now = Date.now();
-              if (peaks.length === 0 || now - peaks[peaks.length - 1] > 400) { // Min 400ms between beats
-                peaks.push(now);
-                if (peaks.length > 5) peaks.shift();
-                
-                if (peaks.length >= 2) {
-                  const intervals = [];
-                  for(let i=1; i<peaks.length; i++) {
-                    intervals.push(peaks[i] - peaks[i-1]);
-                  }
-                  const avgInterval = intervals.reduce((a,b) => a+b, 0) / intervals.length;
-                  const calculatedBpm = Math.round(60000 / avgInterval);
+            // Auto-Stop Requirement: If finger was placed and then removed, stop measurement immediately
+            if (!detected && measurementProgress > 0) {
+              setIsMeasuring(false);
+              return;
+            }
+          }
+
+          if (detected) {
+            samples.push(avgRed);
+            if (samples.length > 100) samples.shift();
+
+            // Simple Peak Detection
+            if (samples.length > 10) {
+              const current = samples[samples.length - 1];
+              const prev = samples[samples.length - 2];
+              const prevPrev = samples[samples.length - 3];
+              
+              const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+              if (prev > avg && prev > current && prev > prevPrev) {
+                const now = Date.now();
+                if (peaks.length === 0 || now - peaks[peaks.length - 1] > 400) { 
+                  peaks.push(now);
+                  if (peaks.length > 5) peaks.shift();
                   
-                  if (calculatedBpm > 40 && calculatedBpm < 180) {
-                    setBpm(calculatedBpm);
-                    if (now - lastBpmUpdate > 1000) {
-                      setHeartRateHistory(prev => [...prev.slice(1), calculatedBpm]);
-                      lastBpmUpdate = now;
+                  if (peaks.length >= 2) {
+                    const intervals = [];
+                    for(let i=1; i<peaks.length; i++) {
+                      intervals.push(peaks[i] - peaks[i-1]);
+                    }
+                    const avgInterval = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+                    const calculatedBpm = Math.round(60000 / avgInterval);
+                    
+                    if (calculatedBpm > 40 && calculatedBpm < 180) {
+                      setBpm(calculatedBpm);
+                      if (now - lastBpmUpdate > 1000) {
+                        setHeartRateHistory(prev => [...prev.slice(1), calculatedBpm]);
+                        lastBpmUpdate = now;
+                      }
                     }
                   }
                 }
               }
             }
+            setMeasurementProgress(prev => Math.min(prev + 0.005, 1));
+          } else {
+            // Reset samples if finger removed
+            samples = [];
+            peaks = [];
+            setMeasurementProgress(0);
           }
 
-          setMeasurementProgress(prev => Math.min(prev + 0.005, 1));
           animationRef.current = requestAnimationFrame(loop);
         };
 
@@ -162,11 +187,11 @@ export default function PatientFitnessTrack() {
     }
 
     return () => {
+      setIsFingerPlaced(false);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
         tracks.forEach((t: any) => {
-          // Turn off torch if supported before stopping
           if (t.applyConstraints) {
             t.applyConstraints({ advanced: [{ torch: false }] } as any).finally(() => t.stop());
           } else {
@@ -177,24 +202,31 @@ export default function PatientFitnessTrack() {
     };
   }, [isMeasuring]);
 
-  // Mobile Simulation Logic (Coupled with Camera active)
+  // Mobile Implementation Logic (Enhanced Simulation with Finger Logic)
   useEffect(() => {
     let interval: any;
     if (Platform.OS !== 'web' && isMeasuring) {
+      // In the real app, we'd use native frame detection. 
+      // For this implementation, we simulate the "Auto-Stop when finger removed" logic.
       interval = setInterval(() => {
-        setMeasurementProgress(prev => {
-          if (prev >= 1) {
-             const newBpm = Math.floor(Math.random() * (85 - 68 + 1)) + 68;
-             setBpm(newBpm);
-             setHeartRateHistory(h => [...h.slice(1), newBpm]);
-             return 0;
-          }
-          return prev + 0.05;
-        });
+        if (isFingerPlaced) {
+          setMeasurementProgress(prev => {
+            if (prev >= 1) {
+               const newBpm = Math.floor(Math.random() * (85 - 68 + 1)) + 68;
+               setBpm(newBpm);
+               setHeartRateHistory(h => [...h.slice(1), newBpm]);
+               return 0;
+            }
+            return prev + 0.05;
+          });
+        }
       }, 100);
     }
-    return () => clearInterval(interval);
-  }, [isMeasuring]);
+    return () => {
+      clearInterval(interval);
+      setIsFingerPlaced(false);
+    };
+  }, [isMeasuring, isFingerPlaced]);
 
   const toggleMeasurement = async () => {
     if (!isMeasuring) {
@@ -207,8 +239,10 @@ export default function PatientFitnessTrack() {
       }
       setIsMeasuring(true);
       setMeasurementProgress(0);
+      setIsFingerPlaced(false);
     } else {
       setIsMeasuring(false);
+      setIsFingerPlaced(false);
     }
   };
 
@@ -282,12 +316,14 @@ export default function PatientFitnessTrack() {
               <Text style={styles.graphTitle}>Live Heart Rate</Text>
               {isMeasuring && (
                 <View style={styles.measuringIndicator}>
-                  <View style={[styles.pulseDot, { opacity: measurementProgress > 0.5 ? 1 : 0.3 }]} />
-                  <Text style={styles.measuringText}>Measuring...</Text>
+                  <View style={[styles.pulseDot, { backgroundColor: isFingerPlaced ? '#F56565' : '#718096', opacity: measurementProgress > 0.5 ? 1 : 0.3 }]} />
+                  <Text style={[styles.measuringText, { color: isFingerPlaced ? '#FEB2B2' : '#A0AEC0' }]}>
+                    {isFingerPlaced ? 'Measuring...' : 'Waiting for finger...'}
+                  </Text>
                 </View>
               )}
             </View>
-            <Text style={styles.graphValue}>{bpm} <Text style={styles.graphUnit}>BPM</Text></Text>
+            <Text style={styles.graphValue}>{isFingerPlaced ? bpm : '--'} <Text style={styles.graphUnit}>BPM</Text></Text>
           </View>
           
           <View style={styles.chartContainer}>
@@ -298,13 +334,20 @@ export default function PatientFitnessTrack() {
                     styles.bar, 
                     { 
                       height: (val / maxHR) * 100,
-                      backgroundColor: val > 100 ? '#F56565' : '#4299E1'
+                      backgroundColor: val > 100 ? '#F56565' : '#4299E1',
+                      opacity: isFingerPlaced ? 1 : 0.4
                     }
                   ]} 
                 />
               </View>
             ))}
           </View>
+          
+          {isMeasuring && !isFingerPlaced && (
+             <View style={styles.fingerHintOverlay}>
+               <Text style={styles.fingerHintText}>👆 Place finger firmly over camera & flash to start</Text>
+             </View>
+          )}
 
           <View style={styles.graphFooter}>
             <TouchableOpacity 
@@ -325,7 +368,9 @@ export default function PatientFitnessTrack() {
               <View style={styles.webSensor}>
                 <video ref={videoRef} style={{ display: 'none' }} />
                 <canvas ref={canvasRef} width="100" height="100" style={styles.miniCanvas} />
-                <Text style={styles.sensorHint}>Keep your finger steady over the back camera</Text>
+                <Text style={[styles.sensorHint, { color: isFingerPlaced ? '#48BB78' : '#FFFFFF' }]}>
+                  {isFingerPlaced ? 'Finger Detected ✓' : 'Keep finger steady over camera'}
+                </Text>
                 {!flashSupported && (
                   <View style={styles.flashWarning}>
                     <Text style={styles.flashWarningText}>⚠️ Browser doesn't support auto-flash.</Text>
@@ -340,13 +385,30 @@ export default function PatientFitnessTrack() {
                    facing="back"
                    enableTorch={true}
                 />
-                <View style={styles.sensorOverlay}>
-                   <Text style={styles.sensorEmoji}>👆</Text>
-                   <Text style={styles.sensorHint}>Place finger firmly over camera & flash</Text>
-                   <View style={styles.progressContainer}>
-                      <View style={[styles.progressFill, { width: `${measurementProgress * 100}%` }]} />
-                   </View>
-                </View>
+                <TouchableOpacity 
+                  activeOpacity={1}
+                  style={[styles.sensorOverlay, isFingerPlaced && { backgroundColor: 'rgba(245, 101, 101, 0.3)' }]}
+                  onPressIn={() => setIsFingerPlaced(true)}
+                  onPressOut={() => {
+                    setIsFingerPlaced(false);
+                    // Automatic Stop requirement: End measure immediately when finger removed
+                    if (measurementProgress > 0) {
+                      setIsMeasuring(false);
+                    }
+                  }}
+                >
+                   <Text style={[styles.sensorEmoji, { transform: [{ scale: isFingerPlaced ? 1.2 : 1 }] }]}>
+                     {isFingerPlaced ? '❤️' : '👆'}
+                   </Text>
+                   <Text style={styles.sensorHint}>
+                     {isFingerPlaced ? 'Hold steady...' : 'Place finger over camera & pulse'}
+                   </Text>
+                   {isFingerPlaced && (
+                     <View style={styles.progressContainer}>
+                        <View style={[styles.progressFill, { width: `${measurementProgress * 100}%` }]} />
+                     </View>
+                   )}
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -593,6 +655,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 15,
+  },
+  fingerHintOverlay: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: -10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#4A5568',
+    alignItems: 'center',
+  },
+  fingerHintText: {
+    color: '#A0AEC0',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   sensorContainer: {
     marginBottom: 32,

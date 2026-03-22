@@ -8,10 +8,13 @@ const STORAGE_CALORIES = 'activity_calories';
 const STORAGE_DURATION = 'activity_duration';
 const STORAGE_IS_TRACKING = 'activity_is_tracking';
 
+const STORAGE_START_TIME = 'activity_start_time';
+
 export const useActivityTracker = () => {
   const [steps, setSteps] = useState(0);
   const [calories, setCalories] = useState(0);
   const [duration, setDuration] = useState(0); 
+  const [startTime, setStartTime] = useState<number | null>(null);
   const [isPedometerAvailable, setIsPedometerAvailable] = useState('checking');
   const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
   const [isWalking, setIsWalking] = useState(false);
@@ -33,6 +36,7 @@ export const useActivityTracker = () => {
         const savedSteps = await AsyncStorage.getItem(STORAGE_STEPS);
         const savedDuration = await AsyncStorage.getItem(STORAGE_DURATION);
         const savedTracking = await AsyncStorage.getItem(STORAGE_IS_TRACKING);
+        const savedStartTime = await AsyncStorage.getItem(STORAGE_START_TIME);
         
         if (savedSteps) {
           const s = parseInt(savedSteps, 10);
@@ -45,6 +49,9 @@ export const useActivityTracker = () => {
         }
         if (savedTracking === 'true') {
           setIsTracking(true);
+          if (savedStartTime) {
+            setStartTime(parseInt(savedStartTime, 10));
+          }
         }
       } catch (e) {
         console.error("Failed to load activity stats", e);
@@ -86,16 +93,15 @@ export const useActivityTracker = () => {
     };
   }, [isTracking, baseSteps]);
 
-  // Duration Timer logic (only if tracking)
+  // Duration Timer logic (Resilient to background/lock)
   useEffect(() => {
     let interval: any;
-    if (isTracking) {
+    if (isTracking && startTime) {
       interval = setInterval(() => {
-        setDuration(prev => {
-          const next = prev + 1;
-          AsyncStorage.setItem(STORAGE_DURATION, next.toString());
-          return next;
-        });
+        const now = Date.now();
+        const newDuration = Math.floor((now - startTime) / 1000);
+        setDuration(newDuration);
+        AsyncStorage.setItem(STORAGE_DURATION, newDuration.toString());
       }, 1000);
 
       const timeout = setTimeout(() => {
@@ -107,10 +113,11 @@ export const useActivityTracker = () => {
         clearTimeout(timeout);
       };
     }
-  }, [isTracking, isWalking]);
+  }, [isTracking, startTime, isWalking]);
 
   const toggleTracking = useCallback(async () => {
     const nextState = !isTracking;
+    const now = Date.now();
     
     if (nextState) {
       // Starting tracking: Ensure we have permissions
@@ -118,22 +125,47 @@ export const useActivityTracker = () => {
       setPermissionStatus(status);
       if (!granted) return;
 
+      // Absolute timing: set startTime to NOW minus current duration
+      const newStart = now - (duration * 1000);
+      setStartTime(newStart);
+      await AsyncStorage.setItem(STORAGE_START_TIME, newStart.toString());
+
       // Set baseSteps to current steps count so result.steps starts from here
       setBaseSteps(steps); 
+    } else {
+      // Stopping tracking: clear startTime but preserve duration state
+      setStartTime(null);
+      await AsyncStorage.removeItem(STORAGE_START_TIME);
     }
 
     setIsTracking(nextState);
     await AsyncStorage.setItem(STORAGE_IS_TRACKING, nextState.toString());
-  }, [isTracking, steps]);
+  }, [isTracking, steps, duration]);
 
   const resetActivity = useCallback(async () => {
+    // 1. Force tracking to stop first to trigger useEffect cleanup
+    setIsTracking(false);
+    setStartTime(null);
+    
+    // 2. Clear all local state
     setSteps(0);
     setBaseSteps(0);
     setCalories(0);
     setDuration(0);
     setIsWalking(false);
-    setIsTracking(false);
-    await AsyncStorage.multiRemove([STORAGE_STEPS, STORAGE_CALORIES, STORAGE_DURATION, STORAGE_IS_TRACKING]);
+    
+    // 3. Clear persistent storage
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_STEPS, 
+        STORAGE_CALORIES, 
+        STORAGE_DURATION, 
+        STORAGE_IS_TRACKING,
+        STORAGE_START_TIME
+      ]);
+    } catch (e) {
+      console.error("Failed to clear activity storage", e);
+    }
   }, []);
 
   return { 
