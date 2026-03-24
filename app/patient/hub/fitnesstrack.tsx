@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useActivityTracker } from '../../../hooks/useActivityTracker';
+import HeartRateMonitor from '../../../components/HeartRateMonitor';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export default function PatientFitnessTrack() {
   const [measurementProgress, setMeasurementProgress] = useState(0);
   const measurementProgressRef = useRef(0);
   const [flashSupported, setFlashSupported] = useState(true);
+  const [showMonitor, setShowMonitor] = useState(false);
   
   // Web-specific PPG Refs
   const videoRef = useRef<any>(null);
@@ -258,24 +260,15 @@ export default function PatientFitnessTrack() {
     };
   }, [isMeasuring, isFingerPlaced]);
 
-  const toggleMeasurement = async () => {
-    if (!isMeasuring) {
-      if (Platform.OS !== 'web' && !permission?.granted) {
-        const res = await requestPermission();
-        if (!res.granted) {
-          Alert.alert("Permission Required", "Camera access is needed for heart rate measurement.");
-          return;
-        }
-      }
-      setIsMeasuring(true);
-      setMeasurementProgress(0);
-      measurementProgressRef.current = 0;
-      setIsFingerPlaced(false);
-      isFingerPlacedRef.current = false;
-    } else {
-      setIsMeasuring(false);
-      setIsFingerPlaced(false);
-    }
+  const toggleMeasurement = () => {
+    setShowMonitor(true);
+  };
+
+  const handleMeasurementResult = (finalBpm: number) => {
+    setHeartBpm(finalBpm);
+    setHeartRateHistory(prev => [...prev.slice(1), finalBpm]);
+    setIsFingerPlaced(true);
+    setTimeout(() => setIsFingerPlaced(false), 3000); // Pulse indicator for a bit
   };
 
   const formatDuration = (s: number) => {
@@ -511,6 +504,12 @@ export default function PatientFitnessTrack() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <HeartRateMonitor 
+        visible={showMonitor}
+        onClose={() => setShowMonitor(false)}
+        onResult={handleMeasurementResult}
+      />
     </SafeAreaView>
   );
 }
