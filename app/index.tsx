@@ -118,13 +118,8 @@ export default function Landing() {
       <View style={styles.content}>
         <View style={styles.header}>
           <TouchableOpacity activeOpacity={1} onPress={handleLogoTap}>
-            <Image 
-              source={require('../assets/images/metrack_logo.png')} 
-              style={styles.logoUnderlay}
-              resizeMode="contain"
-            />
+            <Text style={styles.title}>MediTrack</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>MediTrack</Text>
           <Text style={styles.subtitle}>MediTrack Records</Text>
         </View>
       </View>
@@ -204,13 +199,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     justifyContent: 'center',
-  },
-  logoUnderlay: {
-    position: 'absolute',
-    width: 320,
-    height: 160,
-    opacity: 0.08,
-    zIndex: -1,
   },
   title: {
     fontSize: 42,
