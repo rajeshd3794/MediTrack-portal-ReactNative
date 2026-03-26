@@ -25,6 +25,7 @@ export const useActivityTracker = () => {
   const [motionMagnitude, setMotionMagnitude] = useState(1.0);
   const [isVertical, setIsVertical] = useState(false);
   const [isJittering, setIsJittering] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const [forcePocket, setForcePocket] = useState(false); // For web simulation
   
   // Track steps taken BEFORE the current start command
@@ -32,6 +33,10 @@ export const useActivityTracker = () => {
   const appState = useRef(AppState.currentState);
   const lastSyncTimeRef = useRef<number>(Date.now());
   const lastStepTimeRef = useRef<number>(0);
+
+  const isInPocketRef = useRef(false);
+  const isWalkingRef = useRef(false);
+  const isMovingRef = useRef(false);
 
   // Load initial data
   useEffect(() => {
@@ -96,6 +101,11 @@ export const useActivityTracker = () => {
   // 1. Android/LightSensor: < 60 lux (Relaxed for thin pockets)
   // 2. iOS/No-Sensor: Vertical Tilt > 0.4 (Relaxed for baggy pockets)
   const isInPocket = forcePocket || (isLightSensorAvailable ? (lux < 60) : isVertical);
+
+  // Sync refs that are used in intervals and listeners
+  useEffect(() => { isInPocketRef.current = isInPocket; }, [isInPocket]);
+  useEffect(() => { isWalkingRef.current = isWalking; }, [isWalking]);
+  useEffect(() => { isMovingRef.current = isMoving; }, [isMoving]);
 
   // Accelerometer Logic (Motion Sensitivity)
   useEffect(() => {
@@ -167,18 +177,19 @@ export const useActivityTracker = () => {
   // Set up Pedometer Watcher (Foreground)
   useEffect(() => {
     let subscription: any;
+    let isCancelled = false;
 
     if (!isTracking) return;
 
     const subscribe = async () => {
       // Re-verify availability and check permission
       const isAvailable = await Pedometer.isAvailableAsync();
-      if (!isAvailable) return;
+      if (!isAvailable || isCancelled) return;
 
       // watchStepCount returns steps SINCE the listener started
       subscription = Pedometer.watchStepCount(result => {
         // Gated Logic: Only count steps if in pocket
-        if (!isInPocket) {
+        if (!isInPocketRef.current) {
           setIsWalking(false);
           return;
         }
@@ -202,6 +213,7 @@ export const useActivityTracker = () => {
 
     subscribe();
     return () => {
+      isCancelled = true;
       if (subscription) subscription.remove();
     };
   }, [isTracking, baseSteps]);
@@ -215,20 +227,20 @@ export const useActivityTracker = () => {
         const newDuration = Math.floor((now - startTime) / 1000);
         
         // Gated Logic: Increment duration if user is moving (even if steps haven't fired yet)
-        if (isInPocket && (isWalking || isMoving)) {
+        if (isInPocketRef.current && (isWalkingRef.current || isMovingRef.current)) {
            setDuration(newDuration);
            AsyncStorage.setItem(STORAGE_DURATION, newDuration.toString());
         }
 
         // Watchdog: If no steps in 2.5 seconds, set isWalking to false
-        if (isWalking && Date.now() - lastStepTimeRef.current > 2500) {
+        if (isWalkingRef.current && Date.now() - lastStepTimeRef.current > 2500) {
           setIsWalking(false);
         }
 
         // Web/Simulator fallback for steps
         if (Platform.OS === 'web' || isPedometerAvailable === 'false') {
           // Gated Logic: Only simulate if in pocket state
-          if (isInPocket) {
+          if (isInPocketRef.current) {
             setSteps(prev => {
               const nextSteps = prev + Math.floor(Math.random() * 3); // Sim 0-2 steps
               setCalories(Math.round(nextSteps * 0.04));
@@ -236,6 +248,7 @@ export const useActivityTracker = () => {
               return nextSteps;
             });
             setIsWalking(true);
+            lastStepTimeRef.current = Date.now();
           } else {
             setIsWalking(false);
           }
@@ -246,7 +259,7 @@ export const useActivityTracker = () => {
         clearInterval(interval);
       };
     }
-  }, [isTracking, startTime, isPedometerAvailable, isInPocket, isWalking, isMoving]);
+  }, [isTracking, startTime, isPedometerAvailable]);
 
   const toggleTracking = useCallback(async () => {
     const nextState = !isTracking;
@@ -254,9 +267,24 @@ export const useActivityTracker = () => {
     
     if (nextState) {
       // Starting tracking: Ensure we have permissions
-      const { granted, status } = await Pedometer.requestPermissionsAsync();
+      let granted = false;
+      let status = 'undetermined';
+      
+      try {
+        const result = await Pedometer.requestPermissionsAsync();
+        granted = result.granted;
+        status = result.status;
+      } catch (e) {
+        console.warn("Permission request failed", e);
+      }
+      
       setPermissionStatus(status);
-      if (!granted) return;
+      if (!granted && Platform.OS !== 'web') {
+        // Fallback: If not granted, we allow UI state to change but it will stay at 0
+        // until user fixes permissions.
+        setIsTracking(true); // Allow start but stay paused
+        return;
+      }
 
       // Absolute timing: set startTime to NOW minus current duration
       const newStart = now - (duration * 1000);
@@ -321,6 +349,8 @@ export const useActivityTracker = () => {
     isLightSensorAvailable,
     isMoving,
     motionMagnitude,
+    debugMode,
+    setDebugMode: () => setDebugMode(prev => !prev),
     forcePocket: () => setForcePocket(prev => !prev)
   };
 };

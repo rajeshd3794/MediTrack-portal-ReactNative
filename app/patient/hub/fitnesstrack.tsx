@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 export default function PatientFitnessTrack() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, lux, forcePocket, isLightSensorAvailable, isMoving, motionMagnitude } = useActivity();
+  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, lux, forcePocket, isLightSensorAvailable, isMoving, motionMagnitude, debugMode, setDebugMode } = useActivity();
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -299,6 +299,15 @@ export default function PatientFitnessTrack() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Permission Warning */}
+        {permissionStatus !== 'granted' && isTracking && Platform.OS !== 'web' && (
+          <TouchableOpacity 
+            style={styles.permissionBar} 
+            onPress={() => toggleTracking()} // Re-trigger permission
+          >
+            <Text style={styles.permissionText}>⚠️ Permission Missing: Tap to fix</Text>
+          </TouchableOpacity>
+        )}
         {/* Status Indicator */}
         {isTracking && (
           <View style={[styles.statusBanner, { backgroundColor: isInPocket ? ((isWalking || isMoving) ? '#48BB78' : '#ECC94B') : '#ED8936' }]}>
@@ -543,6 +552,15 @@ export default function PatientFitnessTrack() {
                 </Text>
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity 
+              style={[styles.simButton, {marginTop: 8, backgroundColor: debugMode ? '#F6AD55' : '#4A5568'}]} 
+              onPress={setDebugMode}
+            >
+              <Text style={styles.simButtonText}>
+                {debugMode ? '🛠️ Disable Debug Mode' : '🛠️ Enable Debug Mode'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -604,6 +622,18 @@ const styles = StyleSheet.create({
     color: '#1A365D',
     fontSize: 14,
     fontWeight: '800',
+  },
+  permissionBar: {
+    backgroundColor: '#F56565',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  permissionText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
   trackingActiveIndicator: {
     flexDirection: 'row',
