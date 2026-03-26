@@ -20,6 +20,8 @@
       "bundleIdentifier": "com.medicore.app",
       "infoPlist": {
         "NSMotionUsageDescription": "This app uses the motion sensor to track your steps for health monitoring.",
+        "NSHealthUpdateUsageDescription": "This app uploads your steps and activity duration to Apple Health to keep your records synced.",
+        "NSHealthShareUsageDescription": "This app reads your activity data to provide live step counts and health summaries.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
