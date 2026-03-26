@@ -23,6 +23,8 @@ export const useActivityTracker = () => {
   const [isLightSensorAvailable, setIsLightSensorAvailable] = useState<boolean | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const [motionMagnitude, setMotionMagnitude] = useState(1.0);
+  const [isVertical, setIsVertical] = useState(false);
+  const [isJittering, setIsJittering] = useState(false);
   const [forcePocket, setForcePocket] = useState(false); // For web simulation
   
   // Track steps taken BEFORE the current start command
@@ -90,7 +92,7 @@ export const useActivityTracker = () => {
     return () => subscription?.remove();
   }, []);
 
-  const isInPocket = forcePocket || (isLightSensorAvailable === false) || (lux < 25);
+  const isInPocket = forcePocket || (isLightSensorAvailable ? (lux < 25) : isVertical);
 
   // Accelerometer Logic (Motion Sensitivity)
   useEffect(() => {
@@ -101,8 +103,14 @@ export const useActivityTracker = () => {
       subscription = Accelerometer.addListener(data => {
         const magnitude = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
         setMotionMagnitude(magnitude);
-        // Magnitude is ~1.0 when stationary. 1.15+ indicates meaningful movement
-        if (magnitude > 1.15 || magnitude < 0.85) {
+        
+        // Orientation detection: Pocketed phones are usually vertical/tilt (high gravity on Y-axis)
+        // If gravity on Y is > 0.7 or < -0.7, phone is roughly standing
+        const tilt = Math.abs(data.y);
+        setIsVertical(tilt > 0.6);
+
+        // Movement detection: 1.15+ indicates meaningful movement
+        if (!isJittering && (magnitude > 1.2 || magnitude < 0.8)) {
           setIsMoving(true);
         } else {
           setIsMoving(false);
@@ -252,6 +260,10 @@ export const useActivityTracker = () => {
       const newStart = now - (duration * 1000);
       setStartTime(newStart);
       await AsyncStorage.setItem(STORAGE_START_TIME, newStart.toString());
+
+      // Jitter protection: Ignore motion for first 1.2 seconds after tap
+      setIsJittering(true);
+      setTimeout(() => setIsJittering(false), 1200);
 
       // Set baseSteps to current steps count so result.steps starts from here
       setBaseSteps(steps); 
