@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 export default function PatientFitnessTrack() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, permissionStatus } = useActivity();
+  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, lux, forcePocket } = useActivity();
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -299,6 +299,15 @@ export default function PatientFitnessTrack() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Status Indicator */}
+        {isTracking && (
+          <View style={[styles.statusBanner, { backgroundColor: isInPocket ? (isWalking ? '#48BB78' : '#ECC94B') : '#ED8936' }]}>
+            <Text style={styles.statusText}>
+              {!isInPocket ? '☝️ Place in pocket to track' : (!isWalking ? '👣 Start walking to track' : '✅ Actively Tracking')}
+            </Text>
+          </View>
+        )}
+
         {/* Activity Summary */}
         <View style={styles.summaryCard}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
@@ -501,6 +510,15 @@ export default function PatientFitnessTrack() {
              <Text style={styles.navButtonText}>Fitness Plan</Text>
            </TouchableOpacity>
         </View>
+
+        {/* Simulation Controls for Web */}
+        {Platform.OS === 'web' && isTracking && (
+          <TouchableOpacity style={styles.simButton} onPress={forcePocket}>
+            <Text style={styles.simButtonText}>
+              {isInPocket ? '🔓 Exit Pocket (Sim)' : '🛡️ Enter Pocket (Sim)'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -900,6 +918,35 @@ const styles = StyleSheet.create({
   navButtonText: {
     color: '#3182CE',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  statusBanner: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statusText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  simButton: {
+    backgroundColor: '#EDF2F7',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  simButtonText: {
+    color: '#4A5568',
     fontWeight: '700',
   },
 });

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, AppState, AppStateStatus } from 'react-native';
-import { Pedometer } from 'expo-sensors';
+import { Pedometer, LightSensor } from 'expo-sensors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_STEPS = 'activity_steps';
@@ -19,6 +19,8 @@ export const useActivityTracker = () => {
   const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
   const [isWalking, setIsWalking] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
+  const [lux, setLux] = useState(100); // Default bright
+  const [forcePocket, setForcePocket] = useState(false); // For web simulation
   
   // Track steps taken BEFORE the current start command
   const [baseSteps, setBaseSteps] = useState(0);
@@ -67,6 +69,23 @@ export const useActivityTracker = () => {
     };
     loadStats();
   }, []);
+
+  // Light Sensor Logic (Pocket Detection)
+  useEffect(() => {
+    let subscription: any;
+    const subscribe = async () => {
+      const isAvailable = await LightSensor.isAvailableAsync();
+      if (!isAvailable) return;
+      subscription = LightSensor.addListener(data => {
+        setLux(data.illuminance);
+      });
+      LightSensor.setUpdateInterval(1000);
+    };
+    subscribe();
+    return () => subscription?.remove();
+  }, []);
+
+  const isInPocket = lux < 10 || forcePocket;
 
   // Background/Lock Sync Logic
   const catchUpSteps = async (fromTime: number) => {
@@ -121,6 +140,12 @@ export const useActivityTracker = () => {
 
       // watchStepCount returns steps SINCE the listener started
       subscription = Pedometer.watchStepCount(result => {
+        // Gated Logic: Only count steps if in pocket
+        if (!isInPocket) {
+          setIsWalking(false);
+          return;
+        }
+
         // total = steps_before_start + steps_in_this_session
         const newTotalSteps = baseSteps + result.steps;
         const newCals = Math.round(newTotalSteps * 0.04);
@@ -150,18 +175,27 @@ export const useActivityTracker = () => {
       interval = setInterval(() => {
         const now = Date.now();
         const newDuration = Math.floor((now - startTime) / 1000);
-        setDuration(newDuration);
-        AsyncStorage.setItem(STORAGE_DURATION, newDuration.toString());
+        
+        // ONLY increment duration if in pocket and walking
+        if (isInPocket && isWalking) {
+           setDuration(newDuration);
+           AsyncStorage.setItem(STORAGE_DURATION, newDuration.toString());
+        }
 
         // Web/Simulator fallback for steps
         if (Platform.OS === 'web' || isPedometerAvailable === 'false') {
-          setSteps(prev => {
-            const nextSteps = prev + Math.floor(Math.random() * 3); // Sim 0-2 steps
-            setCalories(Math.round(nextSteps * 0.04));
-            AsyncStorage.setItem(STORAGE_STEPS, nextSteps.toString());
-            return nextSteps;
-          });
-          setIsWalking(true);
+          // Gated Logic: Only simulate if in pocket state
+          if (isInPocket) {
+            setSteps(prev => {
+              const nextSteps = prev + Math.floor(Math.random() * 3); // Sim 0-2 steps
+              setCalories(Math.round(nextSteps * 0.04));
+              AsyncStorage.setItem(STORAGE_STEPS, nextSteps.toString());
+              return nextSteps;
+            });
+            setIsWalking(true);
+          } else {
+            setIsWalking(false);
+          }
         }
       }, 1000);
 
@@ -241,6 +275,9 @@ export const useActivityTracker = () => {
     toggleTracking, 
     resetActivity, 
     isPedometerAvailable,
-    permissionStatus
+    permissionStatus,
+    isInPocket,
+    lux,
+    forcePocket: () => setForcePocket(prev => !prev)
   };
 };
