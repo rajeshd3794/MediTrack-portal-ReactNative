@@ -368,13 +368,6 @@ export default function PatientFitnessTrack() {
              <Text style={styles.accuracyHint}>Tip: Keep phone in pocket for best step accuracy</Text>
           )}
 
-          <TouchableOpacity 
-            style={styles.testStepButton} 
-            onPress={() => simulateWalk(50)}
-          >
-            <Text style={styles.testStepText}>🏃 Simulate Walking (+50 steps)</Text>
-          </TouchableOpacity>
-
           {isTracking && (
             <View style={{ marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
               <Text style={[styles.cardTitle, { fontSize: 14, marginBottom: 12 }]}>Sensor Diagnostic</Text>
