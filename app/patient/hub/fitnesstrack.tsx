@@ -374,41 +374,31 @@ export default function PatientFitnessTrack() {
           >
             <Text style={styles.testStepText}>🏃 Simulate Walking (+50 steps)</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Simulation & Debug Controls (Moved under Activity Summary) */}
-        {isTracking && (
-          <View style={[styles.debugCard, {marginBottom: 24}]}>
-            <Text style={styles.debugTitle}>Sensor Diagnostic</Text>
-            <View style={styles.debugGrid}>
-              <View style={styles.debugItem}>
-                <Text style={styles.debugLabel}>Pocket Sensor</Text>
-                <Text style={[styles.debugValue, isInPocket ? {color: '#48BB78'} : {color: '#F56565'}]}>
-                  {isInPocket ? 'ACTIVE' : 'IDLE'}
-                </Text>
-              </View>
-              <View style={styles.debugItem}>
-                <Text style={styles.debugLabel}>Motion Detect</Text>
-                <Text style={[styles.debugValue, (isMoving || isWalking) ? {color: '#48BB78'} : {color: '#F56565'}]}>
-                  {(isMoving || isWalking) ? 'WALKING' : 'STATIONARY'}
-                </Text>
-              </View>
-              <View style={styles.debugItem}>
-                <Text style={styles.debugLabel}>Lux/Mag</Text>
-                <Text style={styles.debugValue}>{Math.round(lux)} / {motionMagnitude.toFixed(2)}</Text>
+          {isTracking && (
+            <View style={{ marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
+              <Text style={[styles.cardTitle, { fontSize: 14, marginBottom: 12 }]}>Sensor Diagnostic</Text>
+              <View style={styles.debugGrid}>
+                <View style={styles.debugItem}>
+                  <Text style={styles.debugLabel}>Pocket Sensor</Text>
+                  <Text style={[styles.debugValue, isInPocket ? {color: '#48BB78'} : {color: '#F56565'}]}>
+                    {isInPocket ? 'ACTIVE' : 'IDLE'}
+                  </Text>
+                </View>
+                <View style={styles.debugItem}>
+                  <Text style={styles.debugLabel}>Motion Detect</Text>
+                  <Text style={[styles.debugValue, (isMoving || isWalking) ? {color: '#48BB78'} : {color: '#F56565'}]}>
+                    {(isMoving || isWalking) ? 'WALKING' : 'STATIONARY'}
+                  </Text>
+                </View>
+                <View style={styles.debugItem}>
+                  <Text style={styles.debugLabel}>Lux/Mag</Text>
+                  <Text style={styles.debugValue}>{Math.round(lux)} / {motionMagnitude.toFixed(2)}</Text>
+                </View>
               </View>
             </View>
-            
-            <TouchableOpacity 
-              style={[styles.simButton, {marginTop: 8, backgroundColor: debugMode ? '#F6AD55' : '#4A5568'}]} 
-              onPress={setDebugMode}
-            >
-              <Text style={styles.simButtonText}>
-                {debugMode ? '🛠️ Disable Debug Mode' : '🛠️ Enable Debug Mode'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* Real-time Metrics (Graph) */}
         <Text style={styles.sectionTitle}>Real-time Metrics</Text>
