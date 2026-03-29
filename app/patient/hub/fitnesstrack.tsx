@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 export default function PatientFitnessTrack() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, hasEnteredPocket, lux, forcePocket, isLightSensorAvailable, isMoving, motionMagnitude, debugMode, setDebugMode, simulateWalk } = useActivity();
+  const { steps, calories, duration, isWalking, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, isPhysicallyInPocket, hasEnteredPocket, lux, isLightSensorAvailable, isMoving, motionMagnitude, debugMode, setDebugMode, isArmed, toggleArm } = useActivity();
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -308,24 +308,19 @@ export default function PatientFitnessTrack() {
         )}
         {/* Status Indicator */}
         {isTracking && (
-          Platform.OS === 'web' ? (
-            <TouchableOpacity 
-              style={[styles.statusBanner, { backgroundColor: isInPocket ? '#48BB78' : '#ED8936' }]} 
-              onPress={() => forcePocket()}
-            >
-               <Text style={styles.statusText}>
-                 {isInPocket ? '🔓 Exit Pocket (Sim)' : '🛡️ Enter Pocket (Sim)'}
-               </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={[styles.statusBanner, { backgroundColor: isInPocket ? ((isWalking || isMoving) ? '#48BB78' : '#ECC94B') : '#ED8936' }]}>
-              <Text style={styles.statusText}>
-                {!isInPocket 
-                  ? '☝️ Place in pocket to track' 
-                  : (!(isWalking || isMoving) ? '👣 Start walking to track' : '✅ Tracking Live Stats...')}
-              </Text>
-            </View>
-          )
+          <TouchableOpacity 
+            style={[styles.statusBanner, { backgroundColor: isArmed ? (isInPocket ? ((isWalking || isMoving) ? '#48BB78' : '#ECC94B') : '#ED8936') : '#A0AEC0' }]} 
+            onPress={toggleArm}
+            activeOpacity={0.8}
+          >
+             <Text style={styles.statusText}>
+               {!isArmed 
+                 ? '🛡️ Tap here to Arm Pocket Sensor'
+                 : (!isInPocket 
+                   ? '☝️ Waiting (Place in pocket to track)' 
+                   : (!(isWalking || isMoving) ? '👣 Start walking to track' : '✅ Tracking Live Stats...'))}
+             </Text>
+          </TouchableOpacity>
         )}
 
         {/* Activity Summary */}

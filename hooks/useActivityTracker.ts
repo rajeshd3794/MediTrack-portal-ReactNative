@@ -27,7 +27,8 @@ export const useActivityTracker = () => {
   const [isVertical, setIsVertical] = useState(false);
   const [isJittering, setIsJittering] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
-  const [forcePocket, setForcePocket] = useState(false); // For web simulation
+  const [isArmed, setIsArmed] = useState(false);
+  const toggleArm = () => setIsArmed(prev => !prev);
   
   // Track steps taken BEFORE the current start command
   const [baseSteps, setBaseSteps] = useState(0);
@@ -111,7 +112,8 @@ export const useActivityTracker = () => {
   // Pocket Logic: 
   // 1. Android/LightSensor: < 60 lux (Relaxed for thin pockets)
   // 2. iOS/No-Sensor: Vertical Tilt > 0.4 (Relaxed for baggy pockets)
-  const isInPocket = forcePocket || (isLightSensorAvailable ? (lux < 60) : isVertical);
+  const isPhysicallyInPocket = isLightSensorAvailable ? (lux < 60) : isVertical;
+  const isInPocket = isArmed && isPhysicallyInPocket;
 
   // Sync refs that are used in intervals and listeners
   useEffect(() => { 
@@ -389,6 +391,7 @@ export const useActivityTracker = () => {
     isPedometerAvailable,
     permissionStatus,
     isInPocket,
+    isPhysicallyInPocket,
     hasEnteredPocket,
     lux,
     isLightSensorAvailable,
@@ -396,6 +399,7 @@ export const useActivityTracker = () => {
     motionMagnitude,
     debugMode,
     setDebugMode: () => setDebugMode(prev => !prev),
-    forcePocket: () => setForcePocket(prev => !prev)
+    isArmed,
+    toggleArm
   };
 };
