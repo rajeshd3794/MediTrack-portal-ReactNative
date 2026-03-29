@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 export default function PatientFitnessTrack() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const { steps, calories, duration, isTracking, toggleTracking, resetActivity } = useActivity();
+  const { steps, calories, duration, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, hasEnteredPocket, isWalking } = useActivity();
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
