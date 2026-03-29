@@ -308,7 +308,7 @@ export default function PatientFitnessTrack() {
         )}
         {/* Status Indicator */}
         {isTracking && (
-          isLightSensorAvailable === false ? (
+          Platform.OS === 'web' ? (
             <TouchableOpacity 
               style={[styles.statusBanner, { backgroundColor: isInPocket ? '#48BB78' : '#ED8936' }]} 
               onPress={() => forcePocket()}
