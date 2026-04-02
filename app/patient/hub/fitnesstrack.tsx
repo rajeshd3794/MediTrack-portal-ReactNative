@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 export default function PatientFitnessTrack() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const { steps, calories, duration, isTracking, toggleTracking, resetActivity, permissionStatus, isInPocket, hasEnteredPocket, isWalking } = useActivity();
+  const { steps, calories, duration, isWalking, isTracking, isPocketed, toggleTracking, resetActivity, permissionStatus, locationPermission, isPedometerAvailable } = useActivity();
   
   // Real-time Heart Rate State
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -38,6 +38,7 @@ export default function PatientFitnessTrack() {
   useEffect(() => { isMeasuringRef.current = isMeasuring; }, [isMeasuring]);
   useEffect(() => { isFingerPlacedRef.current = isFingerPlaced; }, [isFingerPlaced]);
   useEffect(() => { measurementProgressRef.current = measurementProgress; }, [measurementProgress]);
+
   // Pulse effect when steps increase
   useEffect(() => {
     if (steps > 0) {
@@ -49,6 +50,7 @@ export default function PatientFitnessTrack() {
 
   // Session Cleanup: None (New requirement: Persist on Stop, only reset on Reset button)
   // Removed automatic resetActivity call on unmount to enable session recovery.
+
   // Handle permission denials
   useEffect(() => {
     if (isTracking && permissionStatus === 'denied') {
@@ -262,11 +264,16 @@ export default function PatientFitnessTrack() {
     setShowMonitor(true);
   };
 
+  const [bpmPulse, setBpmPulse] = useState(false);
+
   const handleMeasurementResult = (finalBpm: number) => {
     setHeartBpm(finalBpm);
     setHeartRateHistory(prev => [...prev.slice(1), finalBpm]);
     setIsFingerPlaced(true);
-    setTimeout(() => setIsFingerPlaced(false), 3000); // Pulse indicator for a bit
+    setBpmPulse(true);
+    setTimeout(() => {
+      setBpmPulse(false);
+    }, 3000); // Pulse effect duration
   };
 
   const formatDuration = (s: number) => {
@@ -283,45 +290,40 @@ export default function PatientFitnessTrack() {
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Fitness Track</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity 
-            style={[styles.startHeaderButton, isTracking && styles.stopHeaderButton]} 
-            onPress={toggleTracking}
-          >
-            <Text style={styles.startHeaderText}>{isTracking ? 'Stop' : 'Start'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={resetActivity}>
-            <Text style={{color: '#F56565', fontWeight: '700'}}>Reset</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {!isTracking ? (
+            <TouchableOpacity 
+              style={styles.startHeaderButton} 
+              onPress={toggleTracking}
+            >
+              <Text style={styles.startHeaderText}>Start</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.startHeaderButton, styles.stopHeaderButton]} 
+              onPress={toggleTracking}
+            >
+              <Text style={styles.startHeaderText}>Stop</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={resetActivity} style={{ marginLeft: 4 }}>
+            <Text style={{color: '#F56565', fontWeight: '700', fontSize: 13}}>Reset</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Permission Warning */}
-        {permissionStatus !== 'granted' && isTracking && Platform.OS !== 'web' && (
-          <TouchableOpacity 
-            style={styles.permissionBar} 
-            onPress={() => toggleTracking()} // Re-trigger permission
-          >
-            <Text style={styles.permissionText}>⚠️ Permission Missing: Tap to fix</Text>
-          </TouchableOpacity>
-        )}
         {/* Activity Summary */}
         <View style={styles.summaryCard}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
             <Text style={styles.cardTitle}>Activity Summary</Text>
             {isTracking ? (
-              (!isInPocket && hasEnteredPocket) ? (
-                <View style={styles.trackingActiveIndicator}>
-                  <View style={[styles.activeDot, { backgroundColor: '#ECC94B' }]} />
-                  <Text style={[styles.activeText, { color: '#ECC94B' }]}>PAUSED (Out of pocket)</Text>
-                </View>
-              ) : (
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
                 <View style={styles.trackingActiveIndicator}>
                   <View style={[styles.activeDot, isWalking && { backgroundColor: '#48BB78', transform: [{ scale: stepPulse ? 1.5 : 1 }] }]} />
                   <Text style={styles.activeText}>{isWalking ? 'WALKING...' : 'ACTIVE'}</Text>
                 </View>
-              )
+              </View>
             ) : (
               <Text style={{fontSize: 12, color: '#A0AEC0', fontWeight: '700'}}>PAUSED</Text>
             )}
@@ -338,14 +340,18 @@ export default function PatientFitnessTrack() {
               <Text style={styles.summaryLabel}>Calories</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{formatDuration(duration)}</Text>
+              <Text style={styles.summaryValue}>{formatDuration(duration || 0)}</Text>
               <Text style={styles.summaryLabel}>Duration</Text>
             </View>
           </View>
-          {isTracking && (
+
+
+          {isTracking && !isPocketed && (
+             <Text style={[styles.accuracyHint, { color: '#E53E3E' }]}>⚠️ Please place the phone in your pocket to accurately track steps.</Text>
+          )}
+          {isTracking && isPocketed && (
              <Text style={styles.accuracyHint}>Tip: Keep phone in pocket for best step accuracy</Text>
           )}
-
         </View>
 
         {/* Real-time Metrics (Graph) */}
@@ -364,7 +370,9 @@ export default function PatientFitnessTrack() {
               )}
             </View>
 
-            <Text style={styles.graphValue}>{isFingerPlaced ? heart_bpm : '--'} <Text style={styles.graphUnit}>BPM</Text></Text>
+            <Text style={[styles.graphValue, bpmPulse && { color: '#FEB2B2', transform: [{ scale: 1.1 }] }]}>
+              {heart_bpm > 0 ? heart_bpm : '--'} <Text style={styles.graphUnit}>BPM</Text>
+            </Text>
           </View>
           
           <View style={styles.chartContainer}>
@@ -576,18 +584,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  permissionBar: {
-    backgroundColor: '#F56565',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  permissionText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
   trackingActiveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -638,18 +634,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
     marginTop: 4,
-  },
-  testStepButton: {
-    marginTop: 16,
-    backgroundColor: '#EDF2F7',
-    padding: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  testStepText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#3182CE',
   },
   accuracyHint: {
     fontSize: 10,
@@ -940,75 +924,5 @@ const styles = StyleSheet.create({
     color: '#3182CE',
     fontSize: 14,
     fontWeight: '700',
-  },
-  statusBanner: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 14,
-  },
-  simButton: {
-    backgroundColor: '#EDF2F7',
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  simButtonText: {
-    color: '#4A5568',
-    fontWeight: '700',
-  },
-  debugCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 24,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E0',
-  },
-  debugTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#718096',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  debugGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  debugItem: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#F7FAFC',
-    padding: 8,
-    borderRadius: 8,
-  },
-  debugLabel: {
-    fontSize: 10,
-    color: '#718096',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  debugValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2D3748',
   },
 });

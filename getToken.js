@@ -1,7 +1,8 @@
+require('dotenv').config();
 const https = require('https');
 
-const email = 'antigravity-medicore-tester2026@yopmail.com';
-const password = 'DeployPassword2026!';
+const email = process.env.SURGE_EMAIL;
+const password = process.env.SURGE_PASSWORD;
 
 const req = https.request({
   hostname: 'api.surge.sh',
@@ -15,7 +16,7 @@ const req = https.request({
   res.on('data', chunk => data += chunk);
   res.on('end', () => {
     console.log('Status:', res.statusCode);
-    console.log('Token/Response:', data);
+    console.log('Token/Response:', data.trim());
   });
 });
 

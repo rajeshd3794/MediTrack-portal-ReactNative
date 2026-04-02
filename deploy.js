@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -38,10 +39,10 @@ surge.stdout.on('data', (data) => {
   
   // Handle Surge Login if prompted
   if (output.includes('email:')) {
-    surge.stdin.write('antigravity.tester2026@yopmail.com\n');
+    surge.stdin.write((process.env.SURGE_EMAIL || 'antigravity-medicore-tester2026@yopmail.com') + '\n');
   }
   if (output.includes('password:')) {
-    surge.stdin.write('testerpassword123\n');
+    surge.stdin.write((process.env.SURGE_PASSWORD || 'DeployPassword2026!') + '\n');
   }
 });
 

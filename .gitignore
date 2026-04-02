@@ -46,3 +46,4 @@ yarn-error.*
 # Secrets
 login.txt
 redeploy_fixed.js
+.env

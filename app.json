@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "medicore-app",
+    "name": "Meditrack-portal",
     "slug": "medicore-app",
     "scheme": "patients-record-app",
     "version": "1.0.0",
@@ -20,16 +20,24 @@
       "bundleIdentifier": "com.medicore.app",
       "infoPlist": {
         "NSMotionUsageDescription": "This app uses the motion sensor to track your steps for health monitoring.",
-        "NSHealthUpdateUsageDescription": "This app uploads your steps and activity duration to Apple Health to keep your records synced.",
-        "NSHealthShareUsageDescription": "This app reads your activity data to provide live step counts and health summaries.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app requires background location access to keep tracking your fitness steps precisely while the screen is locked and the device is in your pocket.",
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to provide context for your fitness activities and ensure accurate step tracking during your workout."
       }
     },
     "android": {
       "package": "com.medicore.app",
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
-        "com.google.android.gms.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

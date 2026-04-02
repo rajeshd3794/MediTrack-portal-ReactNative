@@ -18,10 +18,18 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
   const [isFingerPlaced, setIsFingerPlaced] = useState(false);
 
   useEffect(() => {
-    if (visible && !permission?.granted) {
-      requestPermission();
+    if (visible) {
+      if (!permission?.granted) {
+        requestPermission();
+      }
+      // Reset state every time the monitor is opened
+      setIsScanning(false);
+      setProgress(0);
+      setBpm(null);
+      setMessage('Place your finger on camera & flash');
+      setIsFingerPlaced(false);
     }
-  }, [visible]);
+  }, [visible, permission?.granted]);
 
   const startScanning = () => {
     setIsScanning(true);
@@ -40,8 +48,8 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
         setBpm(finalBpm);
         setIsScanning(false);
         setMessage('Measurement complete!');
-        onResult(finalBpm);
-        saveHeartRate(finalBpm);
+        // Note: We don't call onResult or saveHeartRate here anymore.
+        // We wait for the user to click "Save & Done".
       }
     }, 200);
   };
@@ -95,14 +103,26 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
             )}
           </View>
 
-          {!isScanning && !bpm && (
-            <TouchableOpacity style={styles.actionBtn} onPress={startScanning}>
-              <Text style={styles.actionBtnText}>Begin Scanning</Text>
+          {!isScanning && (
+            <TouchableOpacity 
+              style={[styles.actionBtn, bpm ? { backgroundColor: '#718096', marginBottom: 12 } : {}]} 
+              onPress={startScanning}
+            >
+              <Text style={styles.actionBtnText}>
+                {bpm ? 'Re-scan Heart Rate' : 'Begin Scanning'}
+              </Text>
             </TouchableOpacity>
           )}
           
-          {bpm && (
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#48BB78' }]} onPress={handleClose}>
+          {bpm && !isScanning && (
+            <TouchableOpacity 
+              style={[styles.actionBtn, { backgroundColor: '#48BB78' }]} 
+              onPress={() => {
+                onResult(bpm);
+                saveHeartRate(bpm);
+                handleClose();
+              }}
+            >
               <Text style={styles.actionBtnText}>Save & Done</Text>
             </TouchableOpacity>
           )}
