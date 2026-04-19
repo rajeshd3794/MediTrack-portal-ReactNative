@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Animated, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getDoctorByEmail, updateDoctorPasswordByEmail } from '../db/db';
@@ -66,63 +66,67 @@ export default function FetchPassword() {
       <StatusBar style="dark" />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={styles.container}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.centerCard}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>Enter your email to reset your account password</Text>
-        </View>
+            <View style={styles.header}>
+              <Text style={styles.title}>Reset Password</Text>
+              <Text style={styles.subtitle}>Enter your email to reset your account password</Text>
+            </View>
 
-        <View style={styles.form}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="doctor@example.com"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholderTextColor="#A0AEC0"
-            />
+            <View style={styles.form}>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="doctor@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>New Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>New Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter new password"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              placeholderTextColor="#A0AEC0"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              placeholderTextColor="#A0AEC0"
-            />
-          </View>
-
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Submit</Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
 
         {toastVisible && (
           <Animated.View style={[styles.toast, { opacity: fadeAnim }]}>
@@ -139,16 +143,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9FC',
   },
-  keyboardView: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 24,
-    zIndex: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 20,
   },
   backText: {
     fontSize: 16,
@@ -156,17 +173,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A365D',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#718096',
+    fontSize: 15,
+    color: '#4A5568',
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -180,7 +199,7 @@ const styles = StyleSheet.create({
     color: '#4A5568',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,

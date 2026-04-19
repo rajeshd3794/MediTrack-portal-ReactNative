@@ -2,48 +2,45 @@
 
 # dependencies
 node_modules/
+/venv/
+/.venv/
+/apis/venv/
+/apis/.venv/
 
-# Expo
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Expo & Mobile
 .expo/
 dist/
 web-build/
 expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
+/ios
+/android
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
 
-# Metro
+# Metro & Debug
 .metro-health-check*
-
-# debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
-
-# Local Netlify folder
-.netlify
-
-# Secrets
-login.txt
-redeploy_fixed.js
+# Environment & Secrets
 .env
+.env*.local
+.netlify
+login.txt
+
+# System
+.DS_Store
+Thumbs.db
+*.pem
+*.tsbuildinfo

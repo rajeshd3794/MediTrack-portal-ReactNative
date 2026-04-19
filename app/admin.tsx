@@ -95,13 +95,13 @@ export default function AdminPage() {
 
           <TouchableOpacity 
             style={[styles.actionButton, { borderColor: '#BEE3F8' }]} 
-            onPress={handleSync}
+            onPress={() => router.push('/appointments-list')}
             activeOpacity={0.8}
           >
             <View style={[styles.iconCircle, { backgroundColor: '#EBF8FF' }]}>
-              <Text style={styles.iconText}>☁️</Text>
+              <Text style={styles.iconText}>📅</Text>
             </View>
-            <Text style={styles.actionButtonText}>Sync Cloud</Text>
+            <Text style={styles.actionButtonText}>Appointments</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -12,7 +12,12 @@
   </url>
   <url>
     <loc>https://meditrack-portal.surge.sh/doctor-login</loc>
-    <lastmod>2026-03-24</lastmod>
+    <lastmod>2026-04-18</lastmod>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://meditrack-portal.surge.sh/appointments-list</loc>
+    <lastmod>2026-04-18</lastmod>
+    <priority>0.6</priority>
   </url>
 </urlset>

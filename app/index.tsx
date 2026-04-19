@@ -1,68 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Modal, Pressable, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Modal, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { verifyPatient } from '../db/db';
 
 export default function Landing() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAdminVisible, setIsAdminVisible] = useState(false);
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
   const [logoTapCount, setLogoTapCount] = useState(0);
-
-  useEffect(() => {
-    const handleAccessLogic = async () => {
-      // 1. Check for URL Activation (Web/PC)
-      if (params.admin) {
-        if (params.admin === 'enable') {
-          await AsyncStorage.setItem('admin_access_token', 'dronavalli_secure_token');
-          setIsAdminVisible(true);
-          alert('Admin Portal has been activated for this device.');
-          return;
-        } else if (params.admin === 'disable') {
-          await AsyncStorage.removeItem('admin_access_token');
-          setIsAdminVisible(false);
-          alert('Admin Portal has been hidden.');
-          return;
-        }
-      }
-
-      // 2. Check for existing Web Token
-      const storedToken = await AsyncStorage.getItem('admin_access_token');
-      if (storedToken === 'dronavalli_secure_token') {
-        setIsAdminVisible(true);
-        return;
-      }
-
-      // 3. Check Mobile Device Name (Strict Match)
-      if (Platform.OS !== 'web') {
-        const deviceName = Device.deviceName;
-        if (deviceName && deviceName.toLowerCase().includes('dronavalli')) {
-          setIsAdminVisible(true);
-          return;
-        }
-      }
-
-      // 4. Default: Hidden
-      setIsAdminVisible(false);
-    };
-
-    handleAccessLogic();
-  }, [params.admin]);
-
-  const handleLogoTap = async () => {
-    const newCount = logoTapCount + 1;
-    setLogoTapCount(newCount);
-    
-    if (newCount >= 7) {
-      await AsyncStorage.setItem('admin_access_token', 'dronavalli_secure_token');
-      setIsAdminVisible(true);
-      setLogoTapCount(0);
-      alert('Admin Access Activated!');
-    }
-  };
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -71,16 +21,62 @@ export default function Landing() {
     router.push(path as any);
   };
 
+  // Hidden admin logic
+  const handleLogoTap = async () => {
+    const newCount = logoTapCount + 1;
+    setLogoTapCount(newCount);
+    if (newCount >= 7) {
+      await AsyncStorage.setItem('admin_access_token', 'dronavalli_secure_token');
+      setLogoTapCount(0);
+      alert('Admin Portal activated');
+      router.push('/admin-login');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!username || !password) {
+      setError('Please enter both username and password.');
+      return;
+    }
+
+    try {
+      const isValid = await verifyPatient(username, password);
+      
+      if (isValid) {
+        setError('');
+        await AsyncStorage.removeItem('viewing_patient_username');
+        await AsyncStorage.setItem('logged_in_patient', username);
+        router.replace(`/patient-records/patient-info`);
+      } else {
+        setError('Invalid username or password.');
+      }
+    } catch (e) {
+      console.error('Failed to authenticate with cloud', e);
+      setError('Connection error. Please try again.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      {/* Hamburger Toggle */}
-      <TouchableOpacity style={styles.hamburgerButton} onPress={toggleMenu} activeOpacity={0.7}>
-        <View style={styles.hamburgerLine} />
-        <View style={styles.hamburgerLine} />
-        <View style={styles.hamburgerLine} />
-      </TouchableOpacity>
+      {/* Header Section */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity activeOpacity={1} onPress={handleLogoTap}>
+          <Text style={styles.headerLogoInfo}>MediTrack</Text>
+        </TouchableOpacity>
+        <View style={styles.headerRightGroup}>
+          <TouchableOpacity style={styles.headerRegisterBtn} onPress={() => router.push('/Sign-up')}>
+            <Text style={styles.headerRegisterText}>Register Now</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.hamburgerButton} onPress={toggleMenu} activeOpacity={0.7}>
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Menu Modal */}
       <Modal
@@ -91,38 +87,90 @@ export default function Landing() {
       >
         <Pressable style={styles.modalOverlay} onPress={toggleMenu}>
           <View style={styles.menuDropdown}>
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={() => navigateTo('/admin-login')}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('/admin-login')}>
               <Text style={styles.menuItemText}>Admin</Text>
             </TouchableOpacity>
             <View style={styles.menuDivider} />
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={() => navigateTo('/doctor-login')}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('/doctor-login')}>
               <Text style={styles.menuItemText}>Doctors</Text>
             </TouchableOpacity>
             <View style={styles.menuDivider} />
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={() => navigateTo('/patient-auth')}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('/patient-auth')}>
               <Text style={styles.menuItemText}>Patients</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
       </Modal>
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <TouchableOpacity activeOpacity={1} onPress={handleLogoTap}>
-            <Text style={styles.title}>MediTrack</Text>
-          </TouchableOpacity>
-          <Text style={styles.subtitle}>MediTrack Records</Text>
-        </View>
-      </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          
+          {/* Centered Patient Login Card */}
+          <View style={styles.centerCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.title}>Patient Login</Text>
+              <Text style={styles.subtitle}>
+                Access your medical history securely
+              </Text>
+            </View>
+
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.forgotLinksRow}>
+                <TouchableOpacity 
+                  onPress={() => router.push('/fetch-username')}
+                >
+                  <Text style={styles.linkText}>Forgot Username?</Text>
+                </TouchableOpacity>
+                <Text style={styles.linkDivider}> | </Text>
+                <TouchableOpacity 
+                  onPress={() => router.push('/fetch-password')}
+                >
+                  <Text style={styles.linkText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                <Text style={styles.submitButtonText}>Log In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Footer Section */}
+          <View style={styles.footerContainer}>
+            <Text style={styles.footerText}>New to MediTrack? </Text>
+            <TouchableOpacity onPress={() => router.push('/Sign-up')}>
+              <Text style={styles.footerLink}>Register Now</Text>
+            </TouchableOpacity>
+          </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -132,20 +180,46 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9FC',
   },
-  hamburgerButton: {
-    position: 'absolute',
-    top: 60,
-    right: 24,
-    zIndex: 100,
-    padding: 10,
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'android' ? 40 : 16,
+    paddingBottom: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  headerLogoInfo: {
+    fontSize: 32, // h1 size roughly
+    fontWeight: '800',
+    color: '#000000', // STRICTLY BLACK
+    letterSpacing: -0.5,
+  },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerRegisterBtn: {
+    backgroundColor: '#1A365D',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  headerRegisterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  hamburgerButton: {
+    padding: 8,
+    backgroundColor: '#F7FAFC',
+    borderRadius: 8,
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   hamburgerLine: {
     width: 20,
@@ -160,7 +234,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   menuDropdown: {
-    marginTop: 110,
+    marginTop: Platform.OS === 'android' ? 100 : 70,
     marginRight: 24,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -188,28 +262,120 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     width: '100%',
   },
-  content: {
+  keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: 60,
-    position: 'relative',
+  },
+  centerCard: {
     width: '100%',
-    justifyContent: 'center',
+    maxWidth: 400, // strict centering card limit
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  cardHeader: {
+    marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 42,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A365D',
-    letterSpacing: -1,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#4A5568',
-    marginTop: 8,
-    fontWeight: '500',
+    textAlign: 'center',
   },
+  form: {
+    gap: 20,
+  },
+  inputContainer: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4A5568',
+  },
+  input: {
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#2D3748',
+  },
+  forgotLinksRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: -8,
+  },
+  linkDivider: {
+    color: '#CBD5E0',
+    fontSize: 14,
+    marginHorizontal: 4,
+  },
+  linkText: {
+    color: '#3182CE',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  submitButton: {
+    backgroundColor: '#3182CE',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 12,
+    shadowColor: '#3182CE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: '#E53E3E',
+    backgroundColor: '#FFF5F5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    fontWeight: '500',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  footerContainer: {
+    flexDirection: 'row',
+    marginTop: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 15,
+    color: '#4A5568',
+  },
+  footerLink: {
+    fontSize: 15,
+    color: '#3182CE',
+    fontWeight: '700',
+  }
 });

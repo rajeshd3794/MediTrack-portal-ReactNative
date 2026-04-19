@@ -1,0 +1,367 @@
+{
+  "info": {
+    "name": "Meditrack Portal APIs (FastAPI 3-Tier)",
+    "description": "Comprehensive Postman Core API Collection for the Python FastAPI Backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://meditrack-portal.loca.lt/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "meditrack_api_key",
+      "value": "YOUR_API_KEY_HERE",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Patients API",
+      "item": [
+        {
+          "name": "Get All Patients",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/patients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Patient by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/patients/testpatient",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "patients",
+                "testpatient"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Patient\",\n    \"username\": \"testpatient\",\n    \"email\": \"test@example.com\",\n    \"dob\": \"01/01/1990\",\n    \"password\": \"v2_password\",\n    \"age\": 34,\n    \"condition\": \"Healthy\",\n    \"status\": \"Active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/patients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Patient",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"Discharged\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/patients/testpatient",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "patients",
+                "testpatient"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Patient",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/patients/testpatient",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "patients",
+                "testpatient"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctors API",
+      "item": [
+        {
+          "name": "Get All Doctors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/doctors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "doctors"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Doctor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"Dr. Jane\",\n    \"lastname\": \"Doe\",\n    \"username\": \"drjane\",\n    \"email\": \"jane@medicore.com\",\n    \"designation\": \"Cardiologist\",\n    \"password\": \"v2_password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/doctors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "doctors"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Doctor",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"designation\": \"Senior Cardiologist\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/doctors/drjane",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "doctors",
+                "drjane"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Doctor",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/doctors/drjane",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "doctors",
+                "drjane"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments API",
+      "item": [
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"patient_id\": 1,\n    \"doctor_id\": 1,\n    \"appointment_date\": \"2024-10-15T10:00:00Z\",\n    \"status\": \"Pending\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "appointments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Doctor Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/appointments/doctor/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "doctor",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Appointment Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"Completed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments/1/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "1",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Appointment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{meditrack_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/appointments/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

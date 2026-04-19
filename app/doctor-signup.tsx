@@ -94,113 +94,115 @@ export default function DoctorSignup() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join MediCore as a Healthcare Provider</Text>
-          </View>
-
-          <View style={styles.form}>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            {success ? <Text style={styles.successText}>Successfully registered! Redirecting...</Text> : null}
-            <View style={styles.row}>
-              <View style={[styles.inputContainer, { flex: 1 }]}>
-                <Text style={styles.label}>First Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="John"
-                  value={formData.firstName}
-                  onChangeText={(text) => setFormData({...formData, firstName: text})}
-                  placeholderTextColor="#A0AEC0"
-                />
-              </View>
-              <View style={[styles.inputContainer, { flex: 1 }]}>
-                <Text style={styles.label}>Last Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Doe"
-                  value={formData.lastName}
-                  onChangeText={(text) => setFormData({...formData, lastName: text})}
-                  placeholderTextColor="#A0AEC0"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="doctor_doe"
-                value={formData.username}
-                onChangeText={(text) => setFormData({...formData, username: text})}
-                autoCapitalize="none"
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="doctor@hospital.com"
-                value={formData.email}
-                onChangeText={(text) => setFormData({...formData, email: text})}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Doctor Designation</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Cardiologist, General Physician"
-                value={formData.designation}
-                onChangeText={(text) => setFormData({...formData, designation: text})}
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter password"
-                value={formData.password}
-                onChangeText={(text) => setFormData({...formData, password: text})}
-                secureTextEntry
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm password"
-                value={formData.confirmPassword}
-                onChangeText={(text) => setFormData({...formData, confirmPassword: text})}
-                secureTextEntry
-                placeholderTextColor="#A0AEC0"
-              />
-              {formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword && (
-                <Text style={{color: '#E53E3E', fontSize: 12, marginTop: -4}}>Password does not match confirm password</Text>
-              )}
-            </View>
-
-            <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-              <Text style={styles.signupButtonText}>Create Account</Text>
+          <View style={styles.centerCard}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backText}>← Back</Text>
             </TouchableOpacity>
 
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/doctor-login')}>
-                <Text style={styles.loginLink}>Log In</Text>
+            <View style={styles.header}>
+              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.subtitle}>Join MediCore as a Healthcare Provider</Text>
+            </View>
+
+            <View style={styles.form}>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {success ? <Text style={styles.successText}>Successfully registered! Redirecting...</Text> : null}
+              <View style={styles.row}>
+                <View style={[styles.inputContainer, { flex: 1 }]}>
+                  <Text style={styles.label}>First Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="John"
+                    value={formData.firstName}
+                    onChangeText={(text) => setFormData({...formData, firstName: text})}
+                    placeholderTextColor="#A0AEC0"
+                  />
+                </View>
+                <View style={[styles.inputContainer, { flex: 1 }]}>
+                  <Text style={styles.label}>Last Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Doe"
+                    value={formData.lastName}
+                    onChangeText={(text) => setFormData({...formData, lastName: text})}
+                    placeholderTextColor="#A0AEC0"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="doctor_doe"
+                  value={formData.username}
+                  onChangeText={(text) => setFormData({...formData, username: text})}
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="doctor@hospital.com"
+                  value={formData.email}
+                  onChangeText={(text) => setFormData({...formData, email: text})}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Doctor Designation</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Cardiologist, General Physician"
+                  value={formData.designation}
+                  onChangeText={(text) => setFormData({...formData, designation: text})}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter password"
+                  value={formData.password}
+                  onChangeText={(text) => setFormData({...formData, password: text})}
+                  secureTextEntry
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm password"
+                  value={formData.confirmPassword}
+                  onChangeText={(text) => setFormData({...formData, confirmPassword: text})}
+                  secureTextEntry
+                  placeholderTextColor="#A0AEC0"
+                />
+                {formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword && (
+                  <Text style={{color: '#E53E3E', fontSize: 12, marginTop: -4}}>Password does not match confirm password</Text>
+                )}
+              </View>
+
+              <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
+                <Text style={styles.signupButtonText}>Create Account</Text>
               </TouchableOpacity>
+
+              <View style={styles.loginContainer}>
+                <Text style={styles.loginText}>Already have an account? </Text>
+                <TouchableOpacity onPress={() => router.push('/doctor-login')}>
+                  <Text style={styles.loginLink}>Log In</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -220,28 +222,46 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-    paddingTop: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   backButton: {
+    alignSelf: 'flex-start',
     marginBottom: 20,
   },
   backText: {
     fontSize: 16,
     color: '#3182CE',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   header: {
     marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A365D',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#718096',
+    fontSize: 15,
+    color: '#4A5568',
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -259,7 +279,7 @@ const styles = StyleSheet.create({
     color: '#4A5568',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,

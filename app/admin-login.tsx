@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { verifyAdmin } from '../db/db';
@@ -62,63 +62,67 @@ export default function AdminLogin() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.centerCard}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backText}>← Back to Home</Text>
+            </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>Admin Login</Text>
-          <Text style={styles.subtitle}>Enter your credentials to access the admin portal</Text>
-        </View>
+            <View style={styles.header}>
+              <Text style={styles.title}>Admin Login</Text>
+              <Text style={styles.subtitle}>Enter your credentials to access the admin portal</Text>
+            </View>
 
-        <View style={styles.form}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Admin Username"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoComplete="off"
-              autoCorrect={false}
-              importantForAutofill="no"
-              textContentType="none"
-              placeholderTextColor="#A0AEC0"
-            />
+            <View style={styles.form}>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Admin Username"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect={false}
+                  importantForAutofill="no"
+                  textContentType="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="new-password" 
+                  autoCorrect={false}
+                  importantForAutofill="no"
+                  textContentType="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.submitButton, isLoading && styles.submitButtonDisabled]} 
+                onPress={handleLogin}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="new-password" 
-              autoCorrect={false}
-              importantForAutofill="no"
-              textContentType="none"
-              placeholderTextColor="#A0AEC0"
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]} 
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -131,32 +135,50 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 24,
-    zIndex: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 20,
   },
   backText: {
     fontSize: 16,
     color: '#3182CE',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A365D',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#718096',
+    fontSize: 15,
+    color: '#4A5568',
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -170,7 +192,7 @@ const styles = StyleSheet.create({
     color: '#4A5568',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getDoctorByUsername, Doctor } from '../db/db';
@@ -74,62 +74,66 @@ export default function DoctorLogin() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back, Doctor</Text>
-          <Text style={styles.subtitle}>Sign in to access patient records</Text>
-        </View>
-
-        <View style={styles.form}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your username"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              placeholderTextColor="#A0AEC0"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              placeholderTextColor="#A0AEC0"
-            />
-          </View>
-
-          <View style={styles.forgotLinks}>
-            <TouchableOpacity onPress={() => router.push('/fetch-username')}>
-              <Text style={styles.linkText}>Forgot Username?</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.centerCard}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
+              <Text style={styles.backText}>← Back to Home</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/fetch-password')}>
-              <Text style={styles.linkText}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </View>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Login</Text>
-          </TouchableOpacity>
+            <View style={styles.header}>
+              <Text style={styles.title}>Welcome Back, Doctor</Text>
+              <Text style={styles.subtitle}>Sign in to access patient records</Text>
+            </View>
 
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/doctor-signup')}>
-              <Text style={styles.signupLink}>Sign Up</Text>
-            </TouchableOpacity>
+            <View style={styles.form}>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your username"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.forgotLinks}>
+                <TouchableOpacity onPress={() => router.push('/fetch-username')}>
+                  <Text style={styles.linkText}>Forgot Username?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/fetch-password')}>
+                  <Text style={styles.linkText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+                <Text style={styles.loginButtonText}>Login</Text>
+              </TouchableOpacity>
+
+              <View style={styles.signupContainer}>
+                <Text style={styles.signupText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => router.push('/doctor-signup')}>
+                  <Text style={styles.signupLink}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -142,26 +146,42 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 24,
-    zIndex: 10,
+    alignSelf: 'flex-start',
   },
   backText: {
     fontSize: 16,
     color: '#3182CE',
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 20,
   },
   header: {
-    marginBottom: 40,
-    marginTop: 40,
+    marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A365D',
     marginBottom: 8,
@@ -182,7 +202,7 @@ const styles = StyleSheet.create({
     color: '#4A5568',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,

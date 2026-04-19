@@ -54,19 +54,7 @@ export default function PatientAuth() {
             </Text>
           </View>
 
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity 
-              style={[styles.toggleBtn, styles.toggleBtnActive]}
-            >
-              <Text style={[styles.toggleText, styles.toggleTextActive]}>Log In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.toggleBtn]}
-              onPress={() => router.replace('/Sign-up')}
-            >
-              <Text style={[styles.toggleText]}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
+
 
           <View style={styles.form}>
 

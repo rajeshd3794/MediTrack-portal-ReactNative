@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { supabase } from './supabaseClient';
+import { apiFetch } from './apiClient';
 
 // Security: Simple input sanitization to prevent common XSS and injection patterns
 export const sanitizeInput = (val: string): string => {
@@ -8,10 +9,9 @@ export const sanitizeInput = (val: string): string => {
 };
 
 // --- Reversible Encryption Helpers ---
-// Scrambles passwords for storage, but allows decryption for UI display as requested.
 const PWD_SHIFT = 5;
 export const encryptPassword = (pwd: string): string => {
-  if (!pwd || pwd.startsWith('v2_')) return pwd; // Avoid double encryption
+  if (!pwd || pwd.startsWith('v2_')) return pwd;
   return 'v2_' + pwd.split('').map(c => (c.charCodeAt(0) + PWD_SHIFT).toString(16).padStart(2, '0')).join('');
 };
 
@@ -21,7 +21,7 @@ export const decryptPassword = (enc: string): string => {
   let res = '';
   for (let i = 0; i < hex.length; i += 2) {
     const code = parseInt(hex.substring(i, i + 2), 16);
-    if (isNaN(code)) return enc; // Fallback
+    if (isNaN(code)) return enc; 
     res += String.fromCharCode(code - PWD_SHIFT);
   }
   return res;
@@ -62,8 +62,6 @@ async function getDb() {
             timestamp INTEGER,
             notes TEXT
           );
-          
-          -- Migration: Add notes column if it doesn't exist (using a safe PRAGMA check is complex, so we use a simple try-catch block later)
           CREATE TABLE IF NOT EXISTS PatientHistory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patientUsername TEXT NOT NULL,
@@ -72,11 +70,18 @@ async function getDb() {
             details TEXT,
             FOREIGN KEY (patientUsername) REFERENCES Patients(username)
           );
+          CREATE TABLE IF NOT EXISTS Appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            doctor_id INTEGER NOT NULL,
+            appointment_date TEXT NOT NULL,
+            status TEXT DEFAULT 'Pending'
+          );
         `);
 
-        // Seed default doctor if not exists
+        // Seed default doctor
         try {
-          const existingDoctor = await db.getFirstAsync('SELECT * FROM Doctors WHERE username = ?', ['admin']) as Doctor | null;
+          const existingDoctor = await db.getFirstAsync('SELECT * FROM Doctors WHERE username = ?', ['admin']);
           if (!existingDoctor) {
             await db.runAsync(
               'INSERT INTO Doctors (firstName, lastName, username, email, designation, password, timestamp, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -85,9 +90,9 @@ async function getDb() {
           }
         } catch (e) {}
 
-          // Seed default patient if not exists
+        // Seed default patient
         try {
-          const existingPatient = await db.getFirstAsync('SELECT * FROM Patients WHERE username = ?', ['patient']) as Patient | null;
+          const existingPatient = await db.getFirstAsync('SELECT * FROM Patients WHERE username = ?', ['patient']);
           if (!existingPatient) {
             await db.runAsync(
               'INSERT INTO Patients (name, username, email, dob, password, nextAppointment, age, condition, status, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -96,19 +101,14 @@ async function getDb() {
           }
         } catch (e) {}
         
-        // Ensure 'notes' column exists in local database
         try {
           await db.execAsync('ALTER TABLE Patients ADD COLUMN notes TEXT;');
-          console.log('Migrated: Added notes column to Patients table');
-        } catch (e) {
-          // If column already exists or table is new, this may fail, which is fine
-        }
+        } catch (e) {}
 
-        console.log('Database and Tables initialized');
         return db;
       } catch (e) {
         console.warn('Failed to initialize SQLite:', e);
-        return null; // Return null so callers know SQLite is unavailable
+        return null;
       }
     })();
   }
@@ -116,8 +116,10 @@ async function getDb() {
 }
 
 export async function initDatabase() {
-  await getDb(); // Triggers initialization
+  await getDb();
 }
+
+// --- Interfaces ---
 
 export interface Doctor {
   id?: number;
@@ -154,8 +156,17 @@ export interface PatientHistoryItem {
   details?: string;
 }
 
-// --- Supabase Mapping Helpers ---
-// Postgres folds unquoted column names to lowercase. These helpers bridge camelCase JS to lowercase DB.
+export interface Appointment {
+  id?: number;
+  patient_id: number;
+  doctor_id: number;
+  appointment_date: string;
+  status?: string;
+  patient_name?: string;
+  patients?: {name?: string, username?: string, condition?: string};
+}
+
+// --- Mappings ---
 
 const mapDoctorToCloud = (doc: Doctor) => ({
   firstname: sanitizeInput(doc.firstName),
@@ -224,515 +235,260 @@ const mapCloudToHistory = (row: any): PatientHistoryItem => ({
   details: row.details
 });
 
+const mapAppointmentsToCloud = (appt: Appointment) => ({
+  patient_id: appt.patient_id,
+  doctor_id: appt.doctor_id,
+  appointment_date: appt.appointment_date,
+  status: appt.status || 'Pending'
+});
+
+const mapCloudToAppointments = (row: any): Appointment => ({
+  id: row.id,
+  patient_id: row.patient_id,
+  doctor_id: row.doctor_id,
+  appointment_date: row.appointment_date,
+  status: row.status,
+  patients: row.patients
+});
+
+// --- Doctor Functions ---
+
 export async function addDoctor(doctor: Doctor) {
-  // 1. Save to Supabase Cloud
-  const { error } = await supabase
-    .from('doctors')
-    .insert([mapDoctorToCloud(doctor)]);
-
-  if (error) {
-    console.error('Supabase addDoctor failed:', error.message, error.details);
-    throw new Error(`Cloud storage error: ${error.message}`);
-  }
-
+  const { error } = await supabase.from('doctors').insert([mapDoctorToCloud(doctor)]);
+  if (error) throw new Error(`Cloud storage error: ${error.message}`);
   return { success: true }; 
 }
 
 export async function getDoctorByUsername(username: string): Promise<Doctor | null> {
-  // 1. Try Cloud
-  const { data, error } = await supabase
-    .from('doctors')
-    .select('*')
-    .eq('username', sanitizeInput(username))
-    .single();
-  
+  const { data, error } = await supabase.from('doctors').select('*').eq('username', sanitizeInput(username)).single();
   if (!error && data) return mapCloudToDoctor(data);
-
-  // 2. Try Local
-  try {
-    const db = await getDb();
-    if (db) {
-      const doc = await db.getFirstAsync('SELECT * FROM Doctors WHERE username = ?', [sanitizeInput(username)]) as Doctor | null;
-      if (doc) doc.password = decryptPassword(doc.password);
-      return doc;
-    }
-  } catch (e) {
-    console.warn('Local getDoctorByUsername failed:', e);
+  const db = await getDb();
+  if (db) {
+    const doc = await db.getFirstAsync('SELECT * FROM Doctors WHERE username = ?', [sanitizeInput(username)]) as Doctor | null;
+    if (doc) doc.password = decryptPassword(doc.password);
+    return doc;
   }
   return null;
 }
 
 export async function getAllDoctors(): Promise<Doctor[]> {
-  // 1. Try fetching from Supabase (Global Cloud)
-  const { data, error } = await supabase
-    .from('doctors')
-    .select('*')
-    .order('timestamp', { ascending: false });
-
-  if (!error && data) {
-    return data.map(mapCloudToDoctor);
-  }
-
-  // 2. Fallback to Local SQLite
-  try {
-    const db = await getDb();
-    if (db) {
-      console.log('Fetching doctors from local storage...');
-      const rows = await db.getAllAsync('SELECT * FROM Doctors') as Doctor[];
-      return rows.map(r => ({...r, password: decryptPassword(r.password)}));
-    }
-  } catch (e) {
-    console.warn('Local getAllDoctors failed:', e);
+  const { data, error } = await supabase.from('doctors').select('*').order('timestamp', { ascending: false });
+  if (!error && data) return data.map(mapCloudToDoctor);
+  const db = await getDb();
+  if (db) {
+    const rows = await db.getAllAsync('SELECT * FROM Doctors') as Doctor[];
+    return rows.map(r => ({...r, password: decryptPassword(r.password)}));
   }
   return [];
 }
 
-/**
- * Migrates all local SQLite records to the Supabase Cloud.
- * This ensures "move all records of the doctors table data from local storage to server storage".
- */
-export async function migrateLocalToCloud(): Promise<{ doctorsMoved: number, patientsMoved: number }> {
-  const db = await getDb();
-  
-  // 1. Migrate Doctors
-  const localDoctors = await db.getAllAsync('SELECT * FROM Doctors') as Doctor[];
-  let doctorsMoved = 0;
-  for (const doc of localDoctors) {
-    const { error } = await supabase
-      .from('doctors')
-      .upsert(mapDoctorToCloud(doc), { onConflict: 'username' });
-    
-    if (error) {
-      console.error(`Failed to migrate doctor ${doc.username}:`, error.message);
-    } else {
-      doctorsMoved++;
-    }
-  }
-
-  // 2. Migrate Patients
-  const localPatients = await db.getAllAsync('SELECT * FROM Patients') as Patient[];
-  let patientsMoved = 0;
-  for (const pat of localPatients) {
-    const { error } = await supabase
-      .from('patients')
-      .upsert(mapPatientToCloud(pat), { onConflict: 'username' });
-    
-    if (error) {
-      console.error(`Failed to migrate patient ${pat.username}:`, error.message);
-    } else {
-      patientsMoved++;
-    }
-  }
-
-  console.log(`Migration complete: ${doctorsMoved} doctors, ${patientsMoved} patients.`);
-  return { doctorsMoved, patientsMoved };
-}
-
-export async function syncGlobalDoctors(): Promise<void> {
-  // Now simply triggers the migration/sync
-  await migrateLocalToCloud();
-}
-
 export async function getDoctorByEmail(email: string): Promise<Doctor | null> {
-  // 1. Try Cloud
-  const { data, error } = await supabase
-    .from('doctors')
-    .select('*')
-    .eq('email', sanitizeInput(email))
-    .single();
-  
+  const { data, error } = await supabase.from('doctors').select('*').eq('email', sanitizeInput(email)).single();
   if (!error && data) return mapCloudToDoctor(data);
-
-  // 2. Try Local
-  try {
-    const db = await getDb();
-    if (db) {
-      const doc = await db.getFirstAsync('SELECT * FROM Doctors WHERE email = ?', [sanitizeInput(email)]) as Doctor | null;
-      if (doc) doc.password = decryptPassword(doc.password);
-      return doc;
-    }
-  } catch (e) {
-    console.warn('Local getDoctorByEmail failed:', e);
+  const db = await getDb();
+  if (db) {
+    const doc = await db.getFirstAsync('SELECT * FROM Doctors WHERE email = ?', [sanitizeInput(email)]) as Doctor | null;
+    if (doc) doc.password = decryptPassword(doc.password);
+    return doc;
   }
   return null;
-}
-
-export async function getDoctorByNameAndEmail(firstName: string, lastName: string, email: string): Promise<Doctor | null> {
-  // 1. Try Cloud
-  const { data, error } = await supabase
-    .from('doctors')
-    .select('*')
-    .eq('firstname', sanitizeInput(firstName))
-    .eq('lastname', sanitizeInput(lastName))
-    .eq('email', sanitizeInput(email))
-    .single();
-  
-  if (!error && data) return mapCloudToDoctor(data);
-
-  // 2. Try Local
-  try {
-    const db = await getDb();
-    if (db) {
-      const doc = await db.getFirstAsync(
-        'SELECT * FROM Doctors WHERE firstName = ? AND lastName = ? AND email = ?',
-        [firstName, lastName, email]
-      ) as Doctor | null;
-      if (doc) doc.password = decryptPassword(doc.password);
-      return doc;
-    }
-  } catch (e) {
-    console.warn('Local getDoctorByNameAndEmail failed:', e);
-  }
-  return null;
-}
-
-export async function updateDoctorPassword(username: string, newPassword: string): Promise<void> {
-  // 1. Sync to Cloud
-  const { error } = await supabase
-    .from('doctors')
-    .update({ password: encryptPassword(newPassword) })
-    .eq('username', sanitizeInput(username));
-  
-  if (error) {
-    console.error('Supabase updateDoctorPassword failed:', error.message);
-    throw new Error(`Cloud update failed: ${error.message}`);
-  }
 }
 
 export async function updateDoctorPasswordByEmail(email: string, newPassword: string): Promise<void> {
-  // 1. Sync to Cloud
-  const { error } = await supabase
-    .from('doctors')
-    .update({ password: encryptPassword(newPassword) })
-    .eq('email', email);
-  
-  if (error) {
-    console.error('Supabase updateDoctorPasswordByEmail failed:', error.message);
-    throw new Error(`Cloud update failed: ${error.message}`);
-  }
+  const { error } = await supabase.from('doctors').update({ password: encryptPassword(newPassword) }).eq('email', email);
+  if (error) throw new Error(`Cloud update failed: ${error.message}`);
 }
 
+// --- Patient Functions ---
+
 export async function addPatient(patient: Patient) {
-  // 1. Save to Supabase Cloud
-  const { error } = await supabase
-    .from('patients')
-    .insert([mapPatientToCloud(patient)]);
-
-  if (error) {
-    console.error('Supabase addPatient failed:', error.message);
-    throw new Error(`Cloud storage error: ${error.message}`);
-  }
-
-  // 2. Local Cache
-  try {
-    const db = await getDb();
-    if (db) {
-          await db.runAsync(
-            'INSERT INTO Patients (name, username, email, dob, password, nextAppointment, age, condition, status, timestamp, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [
-              patient.name,
-              patient.username,
-              patient.email,
-              patient.dob,
-              encryptPassword(patient.password),
-              patient.nextAppointment || 'Pending',
-              patient.age || 30,
-              patient.condition || 'General Checkup',
-              patient.status || 'New',
-              patient.timestamp || Date.now(),
-              patient.notes || null
-            ]
-          );
-    }
-  } catch (err) {
-    console.warn('SQLite local cache failed (Patients):', err);
+  const { error } = await supabase.from('patients').insert([mapPatientToCloud(patient)]);
+  if (error) throw new Error(`Cloud storage error: ${error.message}`);
+  const db = await getDb();
+  if (db) {
+    await db.runAsync(
+      'INSERT INTO Patients (name, username, email, dob, password, nextAppointment, age, condition, status, timestamp, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [patient.name, patient.username, patient.email, patient.dob, encryptPassword(patient.password), patient.nextAppointment || 'Pending', patient.age || 30, patient.condition || 'General Checkup', patient.status || 'New', patient.timestamp || Date.now(), patient.notes || null]
+    );
   }
   return { success: true };
 }
 
-export async function getPatientByUsername(username: string): Promise<Patient | null> {
-  // 1. Try Cloud
-  const { data, error } = await supabase
-    .from('patients')
-    .select('*')
-    .eq('username', username)
-    .single();
-  
-  if (!error && data) return mapCloudToPatient(data);
-
-  // 2. Try Local
-  try {
-    const db = await getDb();
-    if (db) {
-      const pat = await db.getFirstAsync('SELECT * FROM Patients WHERE username = ?', [username]) as Patient | null;
-      if (pat) pat.password = decryptPassword(pat.password);
-      return pat;
-    }
-  } catch (e) {
-    console.warn('Local getPatientByUsername failed:', e);
-  }
-  return null;
-}
-
-export async function getPatientByEmail(email: string): Promise<Patient | null> {
-  // 1. Try Cloud
-  const { data, error } = await supabase
-    .from('patients')
-    .select('*')
-    .eq('email', email)
-    .single();
-  
-  if (!error && data) return mapCloudToPatient(data);
-
-  // 2. Try Local
-  try {
-    const db = await getDb();
-    if (db) {
-      const pat = await db.getFirstAsync('SELECT * FROM Patients WHERE email = ?', [email]) as Patient | null;
-      if (pat) pat.password = decryptPassword(pat.password);
-      return pat;
-    }
-  } catch (e) {
-    console.warn('Local getPatientByEmail failed:', e);
-  }
-  return null;
-}
-
-export async function updatePatientPassword(username: string, newPassword: string): Promise<void> {
-  // 1. Sync to Cloud
-  const { error } = await supabase
-    .from('patients')
-    .update({ password: encryptPassword(newPassword) })
-    .eq('username', username);
-  
-  if (error) {
-    console.error('Supabase updatePatientPassword failed:', error.message);
-    throw new Error(`Cloud update failed: ${error.message}`);
-  }
-
-  // 2. Local Update
-  try {
-    const db = await getDb();
-    if (db) {
-      await db.runAsync('UPDATE Patients SET password = ? WHERE username = ?', [encryptPassword(newPassword), username]);
-    }
-  } catch (e) {
-    console.warn('Local updatePatientPassword failed:', e);
-  }
-}
-
 export async function getAllPatients(): Promise<Patient[]> {
-  // 1. Try fetching from Supabase
-  const { data, error } = await supabase
-    .from('patients')
-    .select('*')
-    .order('timestamp', { ascending: false });
-
-  if (!error && data) {
-    return data.map(mapCloudToPatient);
-  }
-
-  // 2. Local Fallback
-  try {
-    const db = await getDb();
-    if (db) {
-      const rows = await db.getAllAsync('SELECT * FROM Patients ORDER BY timestamp DESC') as Patient[];
-      return rows.map(r => ({...r, password: decryptPassword(r.password)}));
-    }
-  } catch (e) {
-    console.warn('Local getAllPatients failed:', e);
+  const { data, error } = await supabase.from('patients').select('*').order('timestamp', { ascending: false });
+  if (!error && data) return data.map(mapCloudToPatient);
+  const db = await getDb();
+  if (db) {
+    const rows = await db.getAllAsync('SELECT * FROM Patients ORDER BY timestamp DESC') as Patient[];
+    return rows.map(r => ({...r, password: decryptPassword(r.password)}));
   }
   return [];
 }
 
 export async function updatePatient(patient: Patient): Promise<void> {
-  // 1. Sync to Cloud
-  const { error } = await supabase
-    .from('patients')
-    .update(mapPatientToCloud(patient))
-    .eq('username', patient.username);
-  
-  if (error) {
-    console.error('Supabase updatePatient failed:', error.message);
-    throw new Error(`Cloud update failed: ${error.message}`);
-  }
-
-  // 2. Local Update
-  try {
-    const db = await getDb();
-    if (db) {
-      await db.runAsync(
-        'UPDATE Patients SET name = ?, email = ?, dob = ?, password = ?, nextAppointment = ?, age = ?, condition = ?, status = ?, notes = ? WHERE username = ?',
-        [
-          patient.name,
-          patient.email,
-          patient.dob,
-          encryptPassword(patient.password),
-          patient.nextAppointment ?? null,
-          patient.age ?? null,
-          patient.condition ?? null,
-          patient.status ?? null,
-          patient.notes || null,
-          patient.username
-        ]
-      );
-    }
-  } catch (e) {
-    console.warn('Local updatePatient failed:', e);
-  }
-}
-
-export async function updatePatientAppointment(username: string, nextAppointment: string): Promise<void> {
-  // 1. Sync to Cloud
-  const { error } = await supabase
-    .from('patients')
-    .update({ nextappointment: nextAppointment })
-    .eq('username', username);
-  
-  if (error) {
-    console.error('Supabase updatePatientAppointment failed:', error.message);
-    throw new Error(`Cloud update failed: ${error.message}`);
-  }
-
-  // 2. Local Update
-  try {
-    const db = await getDb();
-    if (db) {
-      await db.runAsync(
-        'UPDATE Patients SET nextAppointment = ? WHERE username = ?',
-        [nextAppointment, username]
-      );
-    }
-  } catch (e) {
-    console.warn('Local updatePatientAppointment failed:', e);
-  }
-}
-
-export async function getPatientHistory(patientUsername: string): Promise<PatientHistoryItem[]> {
-  // 1. Try Cloud
-  const { data, error } = await supabase
-    .from('patienthistory')
-    .select('*')
-    .eq('patientusername', patientUsername)
-    .order('date', { ascending: false });
-
-  if (!error && data) {
-    return data.map(mapCloudToHistory);
-  }
-
-  // 2. Local Fallback
+  const { error } = await supabase.from('patients').update(mapPatientToCloud(patient)).eq('username', patient.username);
+  if (error) throw new Error(`Cloud update failed: ${error.message}`);
   const db = await getDb();
-  if (!db) return [];
-  return await db.getAllAsync(
-    'SELECT * FROM PatientHistory WHERE patientUsername = ? ORDER BY date DESC',
-    [patientUsername]
-  ) as PatientHistoryItem[];
+  if (db) {
+    await db.runAsync(
+      'UPDATE Patients SET name = ?, email = ?, dob = ?, password = ?, nextAppointment = ?, age = ?, condition = ?, status = ?, notes = ? WHERE username = ?',
+      [patient.name, patient.email, patient.dob, encryptPassword(patient.password), patient.nextAppointment ?? null, patient.age ?? null, patient.condition ?? null, patient.status ?? null, patient.notes || null, patient.username]
+    );
+  }
 }
 
-export async function addPatientHistory(history: PatientHistoryItem) {
-  // 1. Sync to Cloud
-  await supabase
-    .from('patienthistory')
-    .insert([mapHistoryToCloud(history)]);
+// --- Appointment Functions ---
 
-  // 2. Local Store
+export async function addAppointments(appt: Appointment): Promise<void> {
+  // Sync to Cloud via Backend API
+  try {
+    const { error } = await apiFetch('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(mapAppointmentsToCloud(appt))
+    });
+    if (error) console.warn('Supabase addAppointments sync failed:', error.message);
+  } catch (e) {
+    console.warn('API sync error:', e);
+  }
+
+  // Local Cache
+  const db = await getDb();
+  if (db) {
+    await db.runAsync(
+      'INSERT INTO Appointments (patient_id, doctor_id, appointment_date, status) VALUES (?, ?, ?, ?)',
+      [appt.patient_id, appt.doctor_id, appt.appointment_date, appt.status || 'Pending']
+    );
+  }
+}
+
+export async function getAppointmentbyAppId(id: number): Promise<Appointment | null> {
+  const { data, error } = await apiFetch(`/appointments/${id}`);
+  if (!error && data) return mapCloudToAppointments(data);
+  const db = await getDb();
+  if (db) {
+    return await db.getFirstAsync('SELECT * FROM Appointments WHERE id = ?', [id]) as Appointment | null;
+  }
+  return null;
+}
+
+export async function getAllAppointments(): Promise<Appointment[]> {
+  try {
+    const { data, error } = await apiFetch('/appointments');
+    if (!error && data && data.success && Array.isArray(data.data)) {
+      console.log(`Sync: Fetched ${data.data.length} appointments from cloud.`);
+      return data.data.map(mapCloudToAppointments);
+    }
+    if (error) console.warn('Fetch appointments from cloud failed:', error.message);
+  } catch (err) {
+    console.error('getAllAppointments sync error:', err);
+  }
+
+  const db = await getDb();
+  if (db) {
+    console.log('Sync: Falling back to local SQLite for appointments.');
+    return await db.getAllAsync('SELECT * FROM Appointments ORDER BY appointment_date ASC') as Appointment[];
+  }
+  return [];
+}
+
+export async function updateAppointmentStatus(id: string | number, status: string): Promise<void> {
+  try {
+    const { error } = await apiFetch(`/appointments/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
+    if (error) console.warn('Supabase update status failed:', error.message);
+  } catch (e) {}
+
+  const db = await getDb();
+  if (db) {
+    await db.runAsync('UPDATE Appointments SET status = ? WHERE id = ?', [status, id]);
+  }
+}
+
+export async function updateAppointment(id: string | number, data: Partial<Appointment>): Promise<void> {
+  // 1. Sync to Cloud
+  try {
+    const { error } = await apiFetch(`/appointments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    if (error) console.warn('Supabase updateAppointment sync failed:', error.message);
+  } catch (e) {}
+
+  // 2. Local Update
   try {
     const db = await getDb();
     if (db) {
-      await db.runAsync(
-        'INSERT INTO PatientHistory (patientUsername, date, event, details) VALUES (?, ?, ?, ?)',
-        [history.patientUsername, history.date, history.event, history.details]
-      );
+      if (data.appointment_date) {
+        await db.runAsync('UPDATE Appointments SET appointment_date = ? WHERE id = ?', [data.appointment_date, id]);
+      }
+      if (data.status) {
+        await db.runAsync('UPDATE Appointments SET status = ? WHERE id = ?', [data.status, id]);
+      }
     }
-  } catch (err) {
-    console.warn('SQLite local cache failed (History):', err);
+  } catch (e) {
+    console.warn('Local updateAppointment failed:', e);
   }
 }
 
-/**
- * Verifies Admin credentials against the Supabase 'admins' table.
- */
+export async function deleteAppointment(id: string | number): Promise<void> {
+  try {
+    const { error } = await apiFetch(`/appointments/${id}`, {
+      method: 'DELETE'
+    });
+    if (error) console.warn('Supabase delete failed:', error.message);
+  } catch (e) {}
+
+  const db = await getDb();
+  if (db) {
+    await db.runAsync('DELETE FROM Appointments WHERE id = ?', [id]);
+  }
+}
+
+// --- Other Logic ---
+
+export async function migrateLocalToCloud(): Promise<{ doctorsMoved: number, patientsMoved: number }> {
+  const db = await getDb();
+  const localDoctors = await db.getAllAsync('SELECT * FROM Doctors') as Doctor[];
+  let doctorsMoved = 0;
+  for (const doc of localDoctors) {
+    const { error } = await supabase.from('doctors').upsert(mapDoctorToCloud(doc), { onConflict: 'username' });
+    if (!error) doctorsMoved++;
+  }
+
+  const localPatients = await db.getAllAsync('SELECT * FROM Patients') as Patient[];
+  let patientsMoved = 0;
+  for (const pat of localPatients) {
+    const { error } = await supabase.from('patients').upsert(mapPatientToCloud(pat), { onConflict: 'username' });
+    if (!error) patientsMoved++;
+  }
+  return { doctorsMoved, patientsMoved };
+}
+
 export async function verifyAdmin(username: string, password: string): Promise<boolean> {
-  // Check the Doctors table in Supabase for matching credentials
-  const { data, error } = await supabase
-    .from('doctors')
-    .select('id, password')
-    .eq('username', username.trim().toLowerCase()) 
-    .single();
-
-  if (error || !data) {
-    console.warn('Admin/Doctor cloud verification failed:', error?.message);
-    return false;
-  }
-
-  // Decrypt and check
-  const realPassword = decryptPassword(data.password);
-  if (realPassword !== password) {
-    console.warn('Password mismatch for admin:', username);
-    return false;
-  }
-
-  return true;
+  const { data, error } = await supabase.from('doctors').select('id, password').eq('username', username.trim().toLowerCase()).single();
+  if (error || !data) return false;
+  return decryptPassword(data.password) === password;
 }
 
-/**
- * Verifies Patient credentials against the Supabase 'patients' table.
- * NO local fallback for authentication.
- */
 export async function verifyPatient(username: string, password: string): Promise<boolean> {
-  // Check the Patients table in Supabase for matching credentials
-  const { data, error } = await supabase
-    .from('patients')
-    .select('username, password')
-    .eq('username', username.trim())
-    .single();
-
-  if (error || !data) {
-    console.warn('Patient cloud verification failed:', error?.message);
-    return false;
-  }
-
-  // Decrypt and check
-  const realPassword = decryptPassword(data.password);
-  if (realPassword !== password) {
-    console.warn('Password mismatch for patient:', username);
-    return false;
-  }
-
-  return true;
+  const { data, error } = await supabase.from('patients').select('username, password').eq('username', username.trim()).single();
+  if (error || !data) return false;
+  return decryptPassword(data.password) === password;
 }
 
-/**
- * Iterates through all patients and marks appointments as 'Completed' if the time has passed.
- * Persists changes to both Cloud and Local DB.
- */
 export async function checkAndAutoUpdateAppointments(): Promise<void> {
   try {
     const patients = await getAllPatients();
     const now = Date.now();
-    let updatesCount = 0;
-
     for (const p of patients) {
-      if (p.nextAppointment && p.nextAppointment !== 'Completed' && p.nextAppointment !== 'Pending' && p.nextAppointment !== 'None') {
+      if (p.nextAppointment && !['Completed', 'Pending', 'None'].includes(p.nextAppointment)) {
         const apptTime = new Date(p.nextAppointment).getTime();
-        
-        // If appt time is valid AND it's in the past (more than 1 minute ago to be safe)
         if (!isNaN(apptTime) && (now - apptTime > 60000)) {
-          console.log(`Auto-completing appointment for ${p.username}`);
-          await updatePatient({
-            ...p,
-            nextAppointment: 'Completed'
-          });
-          updatesCount++;
+          await updatePatient({ ...p, nextAppointment: 'Completed' });
         }
       }
     }
-    if (updatesCount > 0) console.log(`Auto-completed ${updatesCount} appointments.`);
-  } catch (e) {
-    console.error('checkAndAutoUpdateAppointments failed:', e);
-  }
+  } catch (e) {}
 }
-
-
-
-

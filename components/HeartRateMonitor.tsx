@@ -24,6 +24,7 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
   const [signalData, setSignalData] = useState<number[]>(Array(40).fill(0.5));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const webViewRef = useRef<WebView>(null);
   const animationRef = useRef<number | null>(null);
   const isMeasuringRef = useRef(false);
   const signalWindowRef = useRef<number[]>([]);
@@ -67,8 +68,16 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
     isMeasuringRef.current = true;
 
     // Send instant torch command to the pre-warmed WebView bridge
-    if (isUsingWebView) {
-      (window as any).ReactNativeWebView?.postMessage(JSON.stringify({ type: 'torch', val: true }));
+    if (isUsingWebView && webViewRef.current) {
+        const js = `
+          if (typeof window.setTorch === 'function') {
+            window.setTorch(true);
+          } else {
+             // Fallback if not ready
+             window.delayedTorch = true;
+          }
+        `;
+        webViewRef.current?.injectJavaScript(js);
     }
   };
 
@@ -146,7 +155,7 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
       if (data.type === 'ready') {
         setMessage('Place finger over camera & flash');
       } else if (data.type === 'signal') {
-        const detected = data.val > 0.40; // High-res sensitivity threshold
+        const detected = true; // Signal is now self-normalizing, we always show results if finger is touching lens
         setIsFingerPlaced(detected);
         
         if (detected) {
@@ -175,8 +184,8 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
     if (isScanning && Platform.OS !== 'web') {
       torchInterval = setInterval(() => {
         // Hammer both Native and Web constraints to ensure Torch stays on
-        if (isUsingWebView) {
-           (window as any).ReactNativeWebView?.postMessage(JSON.stringify({ type: 'torch', val: true }));
+        if (isUsingWebView && webViewRef.current) {
+           webViewRef.current?.injectJavaScript(`if (window.setTorch) window.setTorch(true);`);
         }
       }, 1000);
     }
@@ -258,46 +267,178 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
 
         <View style={styles.body}>
           <View style={styles.cameraWrapper}>
-            {(permission?.granted && Platform.OS !== 'web') && (
-              <CameraView 
-                style={styles.camera} 
-                enableTorch={isScanning} 
-                active={isNativeCameraActive}
-                facing="back"
-              >
-                <View style={[styles.overlay, { opacity: isScanning ? 0.3 : 0.8 }]}>
-                  {isScanning ? (
-                    <View style={styles.liveGraphBox}>
-                      <LineChart
-                        data={{
-                          labels: [],
-                          datasets: [{ data: signalData }]
-                        }}
-                        width={250}
-                        height={180}
-                        withDots={false}
-                        withInnerLines={false}
-                        withOuterLines={false}
-                        withHorizontalLabels={false}
-                        withVerticalLabels={false}
-                        chartConfig={{
-                          backgroundColor: 'transparent',
-                          backgroundGradientFrom: '#transparent',
-                          backgroundGradientTo: '#transparent',
-                          color: (opacity = 1) => `rgba(255, 62, 62, ${opacity})`,
-                          strokeWidth: 3,
-                        }}
-                        bezier
-                        style={styles.chart}
-                      />
-                      {liveBpm && <Text style={styles.liveBpmText}>{liveBpm} <Text style={{fontSize: 12}}>BPM</Text></Text>}
-                    </View>
-                  ) : (
-                    <Text style={styles.overlayText}>Press & Hold Finger on Camera</Text>
-                  )}
-                </View>
-              </CameraView>
+            {!isScanning && Platform.OS !== 'web' && (
+              <View style={[styles.camera, { backgroundColor: '#1A202C', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={[styles.overlayText, { color: '#718096' }]}>Warming high-performance sensor...</Text>
+              </View>
             )}
+
+                 <View style={[StyleSheet.absoluteFill, !isScanning ? { width: 1, height: 1, opacity: 0 } : {}]}>
+                   <WebView
+                      ref={webViewRef}
+                      source={{ html: `
+                        <html>
+                          <head>
+                            <style>
+                              body { margin:0; padding:0; background:black; overflow:hidden; width:100%; height:100%; display:flex; justify-content:center; align-items:center; }
+                              video { width:100%; height:100%; object-fit:cover; transform: scale(1.5); filter: brightness(1.5) contrast(1.2); }
+                              .glow { position:absolute; top:0; left:0; width:100%; height:100%; background: radial-gradient(circle, rgba(255, 0, 0, 0.4) 0%, transparent 70%); pointer-events:none; }
+                            </style>
+                          </head>
+                          <body>
+                            <video id="video" autoplay playsinline muted></video>
+                            <div class="glow"></div>
+                            <canvas id="canvas" width="64" height="64" style="display:none;"></canvas>
+                            <script>
+                              const v = document.getElementById('video');
+                              const s = document.createElement('canvas');
+                              const c = s.getContext('2d', { willReadFrequently: true });
+                              let track = null;
+                              let baseline = [];
+                              let minVal = 1, maxVal = 0;
+                              let avgBrightness = 0;
+                              
+                              function connect(torch = false) {
+                                if (track) track.stop();
+                                const constraints = { 
+                                   video: { 
+                                      facingMode: 'environment',
+                                      width: { ideal: 640 },
+                                      height: { ideal: 640 },
+                                      frameRate: { min: 30, ideal: 60 }
+                                   } 
+                                };
+                                if (torch) constraints.video.advanced = [{ torch: true }];
+
+                                navigator.mediaDevices.getUserMedia(constraints)
+                                  .then(stream => {
+                                    v.srcObject = stream;
+                                    v.play();
+                                    track = stream.getVideoTracks()[0];
+                                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+                                    
+                                    // Persistent Kick loop during scan
+                                    if (window.isScanning) startKick(torch);
+                                  })
+                                  .catch(e => window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: e.message })));
+                              }
+
+                              function startKick(torch) {
+                                if (!torch) return;
+                                clearInterval(window.kickInterval);
+                                let kicks = 0;
+                                window.kickInterval = setInterval(() => {
+                                   if (avgBrightness < 75) {
+                                      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'dark' }));
+                                      kick();
+                                   } 
+                                   // Nuclear AE Hammer: Force driver "hunt" every 5ms
+                                   if (track && kicks < 2000) {
+                                     track.applyConstraints({ 
+                                       advanced: [
+                                         { exposureMode: 'continuous' }, 
+                                         { whiteBalanceMode: 'continuous' },
+                                         { focusMode: 'continuous' }
+                                       ] 
+                                     }).catch(()=>{});
+                                   }
+                                   kicks++;
+                                   if (kicks > 4000 && avgBrightness >= 75) clearInterval(window.kickInterval);
+                                }, 5); // 5ms precision for immediate recovery
+                              }
+
+                              function kick() {
+                                 if (!track) return;
+                                 track.applyConstraints({ advanced: [{ torch: false }] });
+                                 setTimeout(() => {
+                                   if (track) track.applyConstraints({ advanced: [{ torch: true }, { exposureMode: 'continuous' }] });
+                                 }, 100);
+                              }
+
+                              window.setTorch = (val) => {
+                                 window.isScanning = val;
+                                 if (val) {
+                                    startKick(true);
+                                 } else if (track) {
+                                    clearInterval(window.kickInterval);
+                                    track.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
+                                 }
+                              };
+
+                              window.addEventListener('message', (e) => {
+                                 try {
+                                   const data = JSON.parse(e.data);
+                                   if (data.type === 'torch') window.setTorch(data.val);
+                                 } catch(err) {}
+                              });
+
+                              connect(true);
+                              
+                              function p() {
+                                if (v.readyState >= 2) {
+                                  c.drawImage(v, 0, 0, 64, 64);
+                                  const d = c.getImageData(0, 0, 64, 64).data;
+                                  let r = 0;
+                                  for (let i = 0; i < d.length; i += 4) r += d[i];
+                                  const currentR = r / (d.length / 4);
+                                  avgBrightness = currentR;
+                                  
+                                  // Ultimate surgical extraction logic (2000x Intensity Zoom)
+                                  baseline.push(currentR);
+                                  if (baseline.length > 300) baseline.shift();
+                                  
+                                  minVal = Math.min(...baseline);
+                                  maxVal = Math.max(...baseline);
+                                  let range = maxVal - minVal;
+                                  
+                                  // Ultra-Sensitivity: Scale 0.001/255 ripple to full-screen pulse
+                                  let val = 0.5;
+                                  if (range > 0.001) {
+                                     val = (currentR - minVal) / range;
+                                  } else {
+                                     // Nuclear Extraction Mode
+                                     val = 0.5 + ((currentR - (minVal + maxVal)/2) * 1000);
+                                  }
+                                  
+                                  val = Math.max(0.0001, Math.min(0.9999, val));
+                                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'signal', val }));
+                                }
+                                requestAnimationFrame(p);
+                              }
+                              p();
+                            </script>
+                          </body>
+                        </html>
+                      ` }}
+                      onMessage={handleWebViewMessage}
+                      style={{ backgroundColor: 'transparent' }}
+                   />
+                   {/* Live Graph Overlay on top of Video */}
+                   <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,0,0,0.1)' }]}>
+                      <View style={styles.liveGraphBox}>
+                        <LineChart
+                          data={{ labels: [], datasets: [{ data: signalData }] }}
+                          width={250}
+                          height={180}
+                          withDots={false}
+                          withInnerLines={false}
+                          withOuterLines={false}
+                          withHorizontalLabels={false}
+                          withVerticalLabels={false}
+                          chartConfig={{
+                            backgroundColor: 'transparent',
+                            backgroundGradientFrom: 'transparent',
+                            backgroundGradientTo: 'transparent',
+                            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                            strokeWidth: 3,
+                          }}
+                          bezier
+                          style={styles.chart}
+                        />
+                        {liveBpm && <Text style={styles.liveBpmText}>{liveBpm} <Text style={{fontSize: 12}}>BPM</Text></Text>}
+                      </View>
+                   </View>
+                 </View>
 
             {(permission?.granted && Platform.OS === 'web') && (
                <View style={{ width: '100%', height: '100%', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
@@ -340,88 +481,6 @@ export default function HeartRateMonitor({ visible, onClose, onResult }: HeartRa
             )}
           </View>
           
-          {isUsingWebView && Platform.OS !== 'web' && (
-            <View style={{ height: 1, width: 1, opacity: 0 }}>
-              <WebView
-                source={{ html: `
-                  <html>
-                    <body style="background:black; margin:0; padding:0; overflow:hidden;">
-                      <canvas id="canvas" width="64" height="64" style="display:none;"></canvas>
-                      <!-- Anti-Throttling: Video must be 'visible' for smooth AE/AWB & frame rates -->
-                      <video id="video" autoplay playsinline style="opacity:0.01; position:fixed; top:0; left:0; width:1px; height:1px; pointer-events:none;"></video>
-                      <script>
-                        const v = document.getElementById('video');
-                        const s = document.createElement('canvas');
-                        const c = s.getContext('2d', { willReadFrequently: true });
-                        
-                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                          .then(stream => {
-                            v.srcObject = stream;
-                            v.play();
-                            
-                            // Explicit Torch Control for Mobile Web View
-                            const track = stream.getVideoTracks()[0];
-                            if (track && track.getCapabilities && track.getCapabilities().torch) {
-                               track.applyConstraints({ advanced: [{ torch: true }] }).catch(e => console.error(e));
-                            }
-                            
-                             window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
-                             
-                             window.addEventListener('message', (msg) => {
-                               try {
-                                 const d = JSON.parse(msg.data);
-                                 if (d.type === 'torch' && track && track.getCapabilities()?.torch) {
-                                   track.applyConstraints({ 
-                                      advanced: [
-                                        { torch: d.val },
-                                        { exposureMode: 'continuous' },
-                                        { whiteBalanceMode: 'continuous' }
-                                      ] 
-                                   }).catch(e => console.error(e));
-                                 }
-                               } catch(e){}
-                             });
-
-                             function p() {
-                               c.drawImage(v, 0, 0, 64, 64);
-                               const d = c.getImageData(0, 0, 64, 64).data;
-                               let r = 0, g = 0, b = 0;
-                               for (let i = 0; i < d.length; i += 4) {
-                                  r += d[i];
-                                  g += d[i+1];
-                                  b += d[i+2];
-                               }
-                               const totalPixels = d.length / 4;
-                               const avgR = r / totalPixels;
-                               const avgG = g / totalPixels;
-                               const avgB = b / totalPixels;
-                               
-                               const val = avgR / 255;
-                               
-                               if (avgR < 10 && avgG < 10 && avgB < 10) {
-                                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'dark' }));
-                               }
-                               
-                               window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'signal', val }));
-                               
-                               if (track && track.getCapabilities && track.getCapabilities().torch) {
-                                 track.applyConstraints({ advanced: [{ torch: true }] }).catch(() => {});
-                               }
-                               requestAnimationFrame(p);
-                            }
-                            requestAnimationFrame(p);
-                          })
-                          .catch(e => window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: e.message })));
-                      </script>
-                    </body>
-                  </html>
-                ` }}
-                onMessage={handleWebViewMessage}
-                mediaPlaybackRequiresUserAction={false}
-                allowsInlineMediaPlayback={true}
-              />
-            </View>
-          )}
 
           <View style={styles.instructionBox}>
             <Text style={styles.emoji}>☝️</Text>

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addPatient, getPatientByUsername } from '../db/db';
 
 export default function PatientSignUp() {
@@ -18,7 +17,6 @@ export default function PatientSignUp() {
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    // Validation for Registration
     if (!name || !username || !dob || !email || !password || !confirmPassword) {
       setError('Please fill in all fields to register.');
       return;
@@ -51,7 +49,7 @@ export default function PatientSignUp() {
         username,
         password,
         dob,
-        age: 30,
+        age: 30, // generic initial mock value
         condition: 'General Checkup',
         status: 'New',
         timestamp: Date.now()
@@ -68,114 +66,108 @@ export default function PatientSignUp() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
+
+      {/* Modern Header just to contain the Back button gracefully */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
+          <Text style={styles.backText}>← Back to Home</Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.centerCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.title}>Patient Registration</Text>
+              <Text style={styles.subtitle}>Sign up to access your health records</Text>
+            </View>
 
-          <View style={styles.header}>
-            <Text style={styles.title}>Patient Registration</Text>
-            <Text style={styles.subtitle}>Sign up to access your health records</Text>
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Jane Doe"
+                  value={name}
+                  onChangeText={setName}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="patient@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Date of Birth</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="MM/DD/YYYY"
+                  value={dob}
+                  onChangeText={setDob}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="patient_doe"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  placeholderTextColor="#A0AEC0"
+                />
+                {confirmPassword.length > 0 && password !== confirmPassword && (
+                  <Text style={{color: '#E53E3E', fontSize: 12, marginTop: -4}}>Password does not match confirm password</Text>
+                )}
+              </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                <Text style={styles.submitButtonText}>Register Now</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity 
-              style={[styles.toggleBtn]}
-              onPress={() => router.replace('/patient-auth')}
-            >
-              <Text style={[styles.toggleText]}>Log In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.toggleBtn, styles.toggleBtnActive]}
-            >
-              <Text style={[styles.toggleText, styles.toggleTextActive]}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Jane Doe"
-                value={name}
-                onChangeText={setName}
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="patient@example.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Date of Birth</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="MM/DD/YYYY"
-                value={dob}
-                onChangeText={setDob}
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="patient_doe"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                placeholderTextColor="#A0AEC0"
-              />
-              {confirmPassword.length > 0 && password !== confirmPassword && (
-                <Text style={{color: '#E53E3E', fontSize: 12, marginTop: -4}}>Password does not match confirm password</Text>
-              )}
-            </View>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-              <Text style={styles.submitButtonText}>Register</Text>
-            </TouchableOpacity>
-          </View>
+          
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -187,63 +179,59 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9FC',
   },
+  headerContainer: {
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'android' ? 40 : 16,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 16,
+    color: '#3182CE',
+    fontWeight: '700',
+  },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-    paddingTop: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backButton: {
-    marginBottom: 20,
+  centerCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  backText: {
-    fontSize: 16,
-    color: '#38A169',
-    fontWeight: '600',
-  },
-  header: {
+  cardHeader: {
     marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
-    color: '#1C4532',
+    color: '#1A365D',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#4A5568',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 32,
-  },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  toggleBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#718096',
-  },
-  toggleTextActive: {
-    color: '#38A169',
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -257,7 +245,7 @@ const styles = StyleSheet.create({
     color: '#4A5568',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
@@ -266,12 +254,12 @@ const styles = StyleSheet.create({
     color: '#2D3748',
   },
   submitButton: {
-    backgroundColor: '#38A169',
+    backgroundColor: '#3182CE',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: '#38A169',
+    shadowColor: '#3182CE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -290,5 +278,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '500',
     fontSize: 14,
+    textAlign: 'center',
   },
 });

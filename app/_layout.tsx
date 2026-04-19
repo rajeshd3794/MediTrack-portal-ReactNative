@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
 import { initDatabase } from '../db/db';
 import { ActivityProvider } from '../context/ActivityContext';
+import { GlobalFloatingAI } from '../components/AIAssistant';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function RootLayout() {
       <Stack.Screen name="admin" options={{ title: 'Admin Panel' }} />
       <Stack.Screen name="Doctors-list" options={{ title: 'Doctors List' }} />
       </Stack>
+      <GlobalFloatingAI />
     </ActivityProvider>
   );
 }

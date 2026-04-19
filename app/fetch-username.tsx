@@ -47,75 +47,77 @@ export default function FetchUsername() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Back to Login</Text>
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Forgot Username</Text>
-            <Text style={styles.subtitle}>Enter your details to retrieve your username</Text>
-          </View>
-
-          <View style={styles.form}>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            
-            {username && (
-              <View style={styles.successContainer}>
-                <Text style={styles.successLabel}>Your Username is:</Text>
-                <Text style={styles.usernameText}>{username}</Text>
-                <TouchableOpacity 
-                  style={styles.loginLinkButton} 
-                  onPress={() => router.replace('/doctor-login')}
-                >
-                  <Text style={styles.loginLinkText}>Back to Login</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your first name"
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your last name"
-                value={lastName}
-                onChangeText={setLastName}
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Registered Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="doctor@hospital.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor="#A0AEC0"
-              />
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.submitButton, loading && { opacity: 0.7 }]} 
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              <Text style={styles.submitButtonText}>
-                {loading ? 'Retrieving...' : 'Submit'}
-              </Text>
+          <View style={styles.centerCard}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backText}>← Back to Login</Text>
             </TouchableOpacity>
+
+            <View style={styles.header}>
+              <Text style={styles.title}>Forgot Username</Text>
+              <Text style={styles.subtitle}>Enter your details to retrieve your username</Text>
+            </View>
+
+            <View style={styles.form}>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              
+              {username && (
+                <View style={styles.successContainer}>
+                  <Text style={styles.successLabel}>Your Username is:</Text>
+                  <Text style={styles.usernameText}>{username}</Text>
+                  <TouchableOpacity 
+                    style={styles.loginLinkButton} 
+                    onPress={() => router.replace('/patient-auth')}
+                  >
+                    <Text style={styles.loginLinkText}>Back to Login</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>First Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your first name"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Last Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your last name"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Registered Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="doctor@hospital.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.submitButton, loading && { opacity: 0.7 }]} 
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                <Text style={styles.submitButtonText}>
+                  {loading ? 'Retrieving...' : 'Submit'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -134,10 +136,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-    paddingTop: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   backButton: {
-    marginBottom: 32,
+    alignSelf: 'flex-start',
+    marginBottom: 20,
   },
   backText: {
     fontSize: 16,
@@ -146,16 +164,18 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A365D',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#718096',
+    fontSize: 15,
+    color: '#4A5568',
+    textAlign: 'center',
   },
   form: {
     gap: 20,
@@ -169,7 +189,7 @@ const styles = StyleSheet.create({
     color: '#4A5568',
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
