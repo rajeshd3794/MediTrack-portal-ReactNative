@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Modal, Platform, KeyboardAvoidingView, SafeAreaView } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,7 +39,6 @@ export const AIAssistantChat = ({ onClose }: { onClose?: () => void }) => {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [showNewOptions, setShowNewOptions] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -211,37 +210,6 @@ export const AIAssistantChat = ({ onClose }: { onClose?: () => void }) => {
           </View>
         )}
       </ScrollView>
-
-      {messages.length <= 2 && (
-        <View style={styles.quickActionsContainer}>
-          <TouchableOpacity style={styles.quickActionBtn} onPress={() => setShowNewOptions(!showNewOptions)} activeOpacity={0.7}>
-            <Text style={styles.quickActionBtnText}>Quick Links</Text>
-            <Text style={styles.quickActionArrow}>{showNewOptions ? '↑' : '↓'}</Text>
-          </TouchableOpacity>
-          
-          {showNewOptions && (
-            <View style={styles.quickActionsDropdown}>
-              <Text style={styles.qaTitle}>Popular Shortcuts:</Text>
-              
-              <TouchableOpacity style={styles.qaLinkRow} onPress={() => { handleSend("open patient hub"); }}>
-                <Text style={styles.qaLinkText}>🏥 Patient Hub</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.qaLinkRow} onPress={() => { handleSend("open appointments"); }}>
-                <Text style={styles.qaLinkText}>📅 Book Appointment</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.qaLinkRow} onPress={() => { handleSend("open doctors list"); }}>
-                <Text style={styles.qaLinkText}>👨‍⚕️ Doctors List</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.qaLinkRow} onPress={() => { onClose?.(); router.push('/Sign-up'); }}>
-                <Text style={styles.qaLinkText}>📝 New Patient Registration</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -467,59 +435,5 @@ const styles = StyleSheet.create({
     elevation: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-  },
-  quickActionsContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: '#F7F9FC',
-    alignItems: 'center',
-  },
-  quickActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDF2F7',
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  quickActionBtnText: {
-    fontSize: 14,
-    color: '#2D3748',
-    fontWeight: '600',
-    marginRight: 6,
-  },
-  quickActionArrow: {
-    fontSize: 12,
-    color: '#4A5568',
-    fontWeight: '800',
-  },
-  quickActionsDropdown: {
-    marginTop: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  qaTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1A365D',
-    marginBottom: 10,
-  },
-  qaLinkRow: {
-    paddingVertical: 6,
-  },
-  qaLinkText: {
-    fontSize: 14,
-    color: '#4A5568',
   },
 });
