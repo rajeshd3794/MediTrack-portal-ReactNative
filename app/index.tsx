@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { verifyPatient } from '../db/db';
+import { useVoiceForm } from '../hooks/useVoiceForm';
 
 export default function Landing() {
   const router = useRouter();
@@ -14,7 +15,25 @@ export default function Landing() {
   const [logoTapCount, setLogoTapCount] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
+
+  useVoiceForm('landing', {
+    setField: (field, value) => {
+      if (field === 'username' || field === 'name') setUsername(value);
+      if (field === 'password') setPassword(value);
+    },
+    clear: () => {
+      setUsername('');
+      setPassword('');
+      setError('');
+    },
+    submit: () => handleSubmit(),
+    onHamburgerMenuClick: (mode) => {
+      if (mode === 'open') setIsMenuOpen(true);
+      else if (mode === 'close') setIsMenuOpen(false);
+      else setIsMenuOpen((prev) => !prev);
+    },
+  });
 
   const navigateTo = (path: string) => {
     setIsMenuOpen(false);
@@ -70,7 +89,13 @@ export default function Landing() {
             <Text style={styles.headerRegisterText}>Register Now</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.hamburgerButton} onPress={toggleMenu} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.hamburgerButton}
+            onPress={toggleMenu}
+            activeOpacity={0.7}
+            accessibilityLabel="Hamburger Menu"
+            testID="hamburger-menu"
+          >
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />

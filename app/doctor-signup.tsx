@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDoctor, getDoctorByUsername, getDoctorByEmail } from '../db/db';
+import { useVoiceForm } from '../hooks/useVoiceForm';
 
 export default function DoctorSignup() {
   const router = useRouter();
@@ -18,6 +19,39 @@ export default function DoctorSignup() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  useVoiceForm('doctor-signup', {
+    setField: (field, value) => {
+      if (field === 'name') {
+        const parts = value.split(' ');
+        setFormData((prev) => ({
+          ...prev,
+          firstName: parts[0] || value,
+          lastName: parts.slice(1).join(' ') || prev.lastName,
+        }));
+      }
+      if (field === 'firstName') setFormData((prev) => ({ ...prev, firstName: value }));
+      if (field === 'lastName') setFormData((prev) => ({ ...prev, lastName: value }));
+      if (field === 'username') setFormData((prev) => ({ ...prev, username: value }));
+      if (field === 'email') setFormData((prev) => ({ ...prev, email: value }));
+      if (field === 'designation') setFormData((prev) => ({ ...prev, designation: value }));
+      if (field === 'password') setFormData((prev) => ({ ...prev, password: value, confirmPassword: value }));
+      if (field === 'confirmPassword') setFormData((prev) => ({ ...prev, confirmPassword: value }));
+    },
+    clear: () => {
+      setFormData({
+        firstName: '',
+        lastName: '',
+        username: '',
+        email: '',
+        designation: '',
+        password: '',
+        confirmPassword: '',
+      });
+      setError('');
+    },
+    submit: () => handleSignup(),
+  });
 
   const handleSignup = async () => {
     if (!formData.firstName || !formData.lastName || !formData.username || !formData.email || !formData.designation || !formData.password || !formData.confirmPassword) {

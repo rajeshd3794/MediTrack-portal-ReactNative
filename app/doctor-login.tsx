@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getDoctorByUsername, Doctor } from '../db/db';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useVoiceForm } from '../hooks/useVoiceForm';
 
 export default function DoctorLogin() {
   const router = useRouter();
@@ -11,6 +12,19 @@ export default function DoctorLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useVoiceForm('doctor-login', {
+    setField: (field, value) => {
+      if (field === 'username' || field === 'name') setUsername(value);
+      if (field === 'password') setPassword(value);
+    },
+    clear: () => {
+      setUsername('');
+      setPassword('');
+      setError('');
+    },
+    submit: () => handleLogin(),
+  });
 
   React.useEffect(() => {
     const checkSession = async () => {

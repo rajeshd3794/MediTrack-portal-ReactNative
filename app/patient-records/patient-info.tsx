@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getPatientByUsername, updatePatientAppointment, Patient, updatePatient } from '../../db/db';
+import { useVoiceForm } from '../../hooks/useVoiceForm';
 
 export default function PatientSingleRecord() {
   const router = useRouter();
@@ -98,7 +99,16 @@ export default function PatientSingleRecord() {
     if (selectedDate) setDate(selectedDate);
   };
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
+
+  useVoiceForm('patient-info', {
+    submit: () => handleRequestAppointment(),
+    onHamburgerMenuClick: (mode) => {
+      if (mode === 'open') setIsMenuOpen(true);
+      else if (mode === 'close') setIsMenuOpen(false);
+      else setIsMenuOpen((prev) => !prev);
+    },
+  });
   
   const handleLogout = async () => {
     try {
@@ -140,6 +150,8 @@ export default function PatientSingleRecord() {
               style={styles.hamburgerButton} 
               onPress={toggleMenu}
               activeOpacity={0.7}
+              accessibilityLabel="Hamburger Menu"
+              testID="hamburger-menu"
             >
               <View style={styles.hamburgerLine} />
               <View style={styles.hamburgerLine} />

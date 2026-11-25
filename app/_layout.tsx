@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
 import { initDatabase } from '../db/db';
 import { ActivityProvider } from '../context/ActivityContext';
+import { WebVoiceProvider } from '../context/WebVoiceContext';
 import { GlobalFloatingAI } from '../components/AIAssistant';
 
 export default function RootLayout() {
@@ -11,7 +12,8 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ActivityProvider>
+    <WebVoiceProvider>
+      <ActivityProvider>
       <Head>
         <title>Meditrack-portal | Secure Health Records</title>
         <meta name="description" content="Meditrack-portal: A secure portal for managing patient health records, doctor appointments, and live heart rate tracking. Access your medical data anywhere." />
@@ -37,6 +39,7 @@ export default function RootLayout() {
       <Stack.Screen name="Doctors-list" options={{ title: 'Doctors List' }} />
       </Stack>
       <GlobalFloatingAI />
-    </ActivityProvider>
+      </ActivityProvider>
+    </WebVoiceProvider>
   );
 }

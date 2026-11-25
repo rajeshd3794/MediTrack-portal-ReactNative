@@ -7,6 +7,7 @@ import { getPatientByUsername, Patient } from '../../../db/db';
 import { useActivity } from '../../../context/ActivityContext';
 import { saveHeartRate, initHealthServices } from '../../../services/healthService';
 import HeartRateMonitor from '../../../components/HeartRateMonitor';
+import { useVoiceForm } from '../../../hooks/useVoiceForm';
 
 export default function PatientHub() {
   const router = useRouter();
@@ -21,6 +22,22 @@ export default function PatientHub() {
   // Heart Rate Features
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [bpm, setBpm] = useState<number | null>(null);
+
+  useVoiceForm('patient-hub', {
+    onHamburgerMenuClick: (mode) => {
+      if (mode === 'open') setIsMenuOpen(true);
+      else if (mode === 'close') setIsMenuOpen(false);
+      else setIsMenuOpen((prev) => !prev);
+    },
+    triggerAction: (action) => {
+      if (action === 'START_MEASURE') setIsMeasuring(true);
+      if (action === 'OPEN_MENU') setIsMenuOpen(true);
+      if (action === 'CLOSE_MENU') setIsMenuOpen(false);
+      if (action === 'TOGGLE_MENU') setIsMenuOpen((prev) => !prev);
+      if (action === 'TOGGLE_NUTRITION') setIsNutritionExpanded((prev) => !prev);
+      if (action === 'TOGGLE_WORKOUT') setIsWorkoutExpanded((prev) => !prev);
+    },
+  });
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -71,6 +88,8 @@ export default function PatientHub() {
           style={styles.hamburgerButton} 
           onPress={toggleMenu}
           activeOpacity={0.7}
+          accessibilityLabel="Hamburger Menu"
+          testID="hamburger-menu"
         >
           <View style={styles.hamburgerLine} />
           <View style={styles.hamburgerLine} />

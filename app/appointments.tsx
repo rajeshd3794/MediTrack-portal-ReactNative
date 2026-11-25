@@ -3,12 +3,24 @@ import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Pla
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getAllPatients, Patient, checkAndAutoUpdateAppointments } from '../db/db';
+import { useVoiceForm } from '../hooks/useVoiceForm';
 
 export default function Appointments() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date().getDate());
   const [patients, setPatients] = useState<Patient[]>([]);
   const [weekDays, setWeekDays] = useState<any[]>([]);
+
+  useVoiceForm('appointments', {
+    setField: (field, value) => {
+      if (field === 'date') {
+        const parsed = parseInt(value, 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
+          setSelectedDate(parsed);
+        }
+      }
+    },
+  });
 
   useEffect(() => {
     const fetchAppointments = async () => {

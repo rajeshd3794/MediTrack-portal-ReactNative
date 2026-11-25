@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingVi
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { verifyAdmin } from '../db/db';
+import { useVoiceForm } from '../hooks/useVoiceForm';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -10,6 +11,19 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useVoiceForm('admin-login', {
+    setField: (field, value) => {
+      if (field === 'username' || field === 'name') setUsername(value);
+      if (field === 'password') setPassword(value);
+    },
+    clear: () => {
+      setUsername('');
+      setPassword('');
+      setError('');
+    },
+    submit: () => handleLogin(),
+  });
 
   // 1. Clear fields immediately on focus
   useFocusEffect(

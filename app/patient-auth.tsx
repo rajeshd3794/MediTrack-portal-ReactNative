@@ -4,12 +4,26 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { verifyPatient } from '../db/db';
+import { useVoiceForm } from '../hooks/useVoiceForm';
 
 export default function PatientAuth() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+
+  useVoiceForm('patient-auth', {
+    setField: (field, value) => {
+      if (field === 'username' || field === 'name') setUsername(value);
+      if (field === 'password') setPassword(value);
+    },
+    clear: () => {
+      setUsername('');
+      setPassword('');
+      setError('');
+    },
+    submit: () => handleSubmit(),
+  });
 
   const handleSubmit = async () => {
     // Validation for login
