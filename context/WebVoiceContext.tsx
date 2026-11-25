@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
@@ -826,32 +826,6 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }}
     >
       {children}
-      {isSupported && (
-        <View style={styles.overlayWrapper} pointerEvents="box-none">
-          <View style={[styles.pill, isListening ? styles.pillActive : styles.pillIdle]}>
-            <View
-              style={[
-                styles.dot,
-                isListening ? styles.dotActive : needsGesture ? styles.dotWarn : styles.dotPaused,
-              ]}
-            />
-            <View style={styles.textCol}>
-              <Text style={styles.statusText} numberOfLines={1}>
-                {isListening
-                  ? feedback || (transcript ? `"${transcript}"` : isWeb ? 'Hands-Free Voice Active' : 'Listening...')
-                  : needsGesture
-                  ? 'Click anywhere to enable Hands-Free Voice'
-                  : feedback || (isWeb ? 'Voice Paused' : 'Voice Command Ready')}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.toggleBtn} onPress={toggleListening} activeOpacity={0.7}>
-              <Text style={styles.toggleBtnText}>
-                {isListening ? (isWeb ? 'Pause' : 'Stop') : isWeb ? 'Resume' : 'Speak'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </WebVoiceContext.Provider>
   );
 };
@@ -863,70 +837,3 @@ export const useWebVoice = () => {
   }
   return ctx;
 };
-
-const styles = StyleSheet.create({
-  overlayWrapper: {
-    position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as any,
-    top: Platform.OS === 'web' ? 12 : Platform.OS === 'ios' ? 50 : 38,
-    left: 12,
-    right: 12,
-    alignItems: 'center',
-    zIndex: 10000,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    maxWidth: 460,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8,
-    borderWidth: 1,
-    gap: 10,
-  },
-  pillActive: {
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
-    borderColor: 'rgba(72, 187, 120, 0.5)',
-  },
-  pillIdle: {
-    backgroundColor: 'rgba(26, 32, 44, 0.88)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  dot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-  },
-  dotActive: {
-    backgroundColor: '#48BB78',
-  },
-  dotWarn: {
-    backgroundColor: '#ECC94B',
-  },
-  dotPaused: {
-    backgroundColor: '#A0AEC0',
-  },
-  textCol: {
-    flexShrink: 1,
-  },
-  statusText: {
-    color: '#F7FAFC',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  toggleBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  toggleBtnText: {
-    color: '#90CDF4',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});
