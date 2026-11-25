@@ -156,6 +156,11 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const recordingRef = useRef<Audio.Recording | null>(null);
   const shouldListenRef = useRef<boolean>(false);
   const isPausedRef = useRef<boolean>(false);
+  const isSpeakingRef = useRef<boolean>(false);
+  const ignoreRecognitionUntilRef = useRef<number>(0);
+  const lastSpokenRef = useRef<{ text: string; time: number }>({ text: '', time: 0 });
+  const speakSafetyTimerRef = useRef<any>(null);
+  const activeUtteranceRef = useRef<any>(null);
   const restartTimerRef = useRef<any>(null);
   const feedbackTimerRef = useRef<any>(null);
   const lastExecutedRef = useRef<{ text: string; time: number }>({ text: '', time: 0 });
@@ -163,6 +168,7 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const routerRef = useRef(router);
   const pathnameRef = useRef(pathname);
   const executeCommandRef = useRef<(speechText: string) => Promise<boolean>>(async () => false);
+  const resumeRecognitionAfterSpeakRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     routerRef.current = router;
@@ -178,15 +184,75 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const speak = useCallback((text: string) => {
-    if (!isWeb || !('speechSynthesis' in window)) return;
+    if (!isWeb || !('speechSynthesis' in window) || !text.trim()) return;
+    const norm = normalizeText(text);
+    const now = Date.now();
+    // Prevent speaking the same phrase multiple times back-to-back
+    if (lastSpokenRef.current.text === norm && now - lastSpokenRef.current.time < 2000) {
+      return;
+    }
     try {
+      // Stop any active SpeechRecognition while TTS is speaking so the mic cannot hear speaker echo
+      isSpeakingRef.current = true;
+      lastSpokenRef.current = { text: norm, time: now };
+      ignoreRecognitionUntilRef.current = now + 8000;
+
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+      if (speakSafetyTimerRef.current) {
+        clearTimeout(speakSafetyTimerRef.current);
+        speakSafetyTimerRef.current = null;
+      }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.onend = null;
+          recognitionRef.current.abort();
+        } catch {
+          // Ignore
+        }
+        recognitionRef.current = null;
+        setIsListening(false);
+      }
+
+      const finishSpeaking = () => {
+        if (!isSpeakingRef.current) return;
+        isSpeakingRef.current = false;
+        activeUtteranceRef.current = null;
+        if (speakSafetyTimerRef.current) {
+          clearTimeout(speakSafetyTimerRef.current);
+          speakSafetyTimerRef.current = null;
+        }
+        // Brief echo-decay window after speaker audio finishes
+        ignoreRecognitionUntilRef.current = Date.now() + 600;
+        if (shouldListenRef.current && !isPausedRef.current) {
+          restartTimerRef.current = setTimeout(() => {
+            if (shouldListenRef.current && !isPausedRef.current && !isSpeakingRef.current) {
+              resumeRecognitionAfterSpeakRef.current();
+            }
+          }, 550);
+        }
+      };
+
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
       utterance.pitch = 1.0;
+      utterance.onend = finishSpeaking;
+      utterance.onerror = finishSpeaking;
+      activeUtteranceRef.current = utterance;
+
+      // Safety fallback in case the browser fails to fire utterance.onend
+      const fallbackMs = Math.min(Math.max(text.length * 95 + 1200, 2500), 9000);
+      speakSafetyTimerRef.current = setTimeout(finishSpeaking, fallbackMs);
+
       window.speechSynthesis.speak(utterance);
     } catch {
-      // Ignore TTS failures
+      isSpeakingRef.current = false;
+      activeUtteranceRef.current = null;
     }
   }, [isWeb]);
 
@@ -278,10 +344,16 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       clearTimeout(restartTimerRef.current);
       restartTimerRef.current = null;
     }
+    if (speakSafetyTimerRef.current) {
+      clearTimeout(speakSafetyTimerRef.current);
+      speakSafetyTimerRef.current = null;
+    }
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
         recognitionRef.current.onend = null;
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       } catch {
         // Ignore
       }
@@ -307,9 +379,24 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const clean = normalizeText(rawSpeech);
     if (!clean) return false;
 
-    // Deduplicate identical commands within 1200ms
     const now = Date.now();
-    if (lastExecutedRef.current.text === clean && now - lastExecutedRef.current.time < 1200) {
+
+    // Drop any residual speaker echo while TTS is speaking or immediately after TTS finishes
+    if (isSpeakingRef.current || now < ignoreRecognitionUntilRef.current) {
+      return false;
+    }
+    if (
+      lastSpokenRef.current.text &&
+      now - lastSpokenRef.current.time < 4000 &&
+      (clean === lastSpokenRef.current.text ||
+        lastSpokenRef.current.text.includes(clean) ||
+        clean.includes(lastSpokenRef.current.text))
+    ) {
+      return false;
+    }
+
+    // Deduplicate identical commands within 2500ms so each spoken command executes strictly once
+    if (lastExecutedRef.current.text === clean && now - lastExecutedRef.current.time < 2500) {
       return false;
     }
     lastExecutedRef.current = { text: clean, time: now };
@@ -677,18 +764,23 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
         recognitionRef.current.onend = null;
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       } catch {
         // Ignore
       }
+      recognitionRef.current = null;
     }
 
     try {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
       recognition.lang = 'en-US';
+      const processedIndices = new Set<number>();
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -696,14 +788,19 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
 
       recognition.onresult = (event: any) => {
+        if (isSpeakingRef.current || Date.now() < ignoreRecognitionUntilRef.current) {
+          return;
+        }
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const res = event.results[i];
           if (!res || !res[0]) continue;
           if (res.isFinal) {
+            if (processedIndices.has(i)) continue;
+            processedIndices.add(i);
             const finalCmd = res[0].transcript.trim();
             if (finalCmd) {
-              executeCommand(finalCmd);
+              executeCommandRef.current(finalCmd);
             }
           } else {
             interim += res[0].transcript;
@@ -727,17 +824,15 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       recognition.onend = () => {
         setIsListening(false);
-        if (shouldListenRef.current) {
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+        }
+        if (shouldListenRef.current && !isPausedRef.current && !isSpeakingRef.current) {
           restartTimerRef.current = setTimeout(() => {
-            if (shouldListenRef.current) {
-              try {
-                recognition.start();
-              } catch {
-                // Will retry on next user interaction if blocked
-                setNeedsGesture(true);
-              }
+            if (shouldListenRef.current && !isPausedRef.current && !isSpeakingRef.current && !recognitionRef.current) {
+              resumeRecognitionAfterSpeakRef.current();
             }
-          }, 300);
+          }, 350);
         }
       };
 
@@ -747,7 +842,9 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsListening(false);
       setNeedsGesture(true);
     }
-  }, [isWeb, executeCommand, showFeedback]);
+  }, [isWeb, showFeedback]);
+
+  resumeRecognitionAfterSpeakRef.current = startListening;
 
   const toggleListening = useCallback(() => {
     if (isListening || shouldListenRef.current) {
@@ -780,7 +877,7 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // If browser requires a user gesture before mic access, auto-start on the first interaction anywhere
     const handleFirstGesture = () => {
-      if (isPausedRef.current) return;
+      if (isPausedRef.current || isSpeakingRef.current) return;
       if (!shouldListenRef.current || !recognitionRef.current) {
         startListening();
       }
@@ -793,15 +890,20 @@ export const WebVoiceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       window.removeEventListener('pointerdown', handleFirstGesture);
       window.removeEventListener('keydown', handleFirstGesture);
       shouldListenRef.current = false;
+      isSpeakingRef.current = false;
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
       if (recognitionRef.current) {
         try {
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onerror = null;
           recognitionRef.current.onend = null;
-          recognitionRef.current.stop();
+          recognitionRef.current.abort();
         } catch {
           // Ignore
         }
+        recognitionRef.current = null;
       }
     };
   }, [isWeb]);
